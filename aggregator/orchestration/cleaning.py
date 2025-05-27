@@ -32,7 +32,7 @@ class CleaningMixin:
         ROOT = Path(__file__).resolve().parent.parent.parent
         whitelist = {
             'README.md', 'config.yaml', 'pyproject.toml', 'poetry.lock',
-            'aggregator', 'tests', '.github', 'run_menu.py', 'LICENSE', 'CONTRIBUTING.md'
+            'aggregator', 'tests', '.github', 'run_menu.py', 'LICENSE', '.git'
         }
     
         # Fonction pour rendre un répertoire accessible en écriture (résoudre les problèmes de permissions)
