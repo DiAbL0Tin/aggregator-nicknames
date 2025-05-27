@@ -26,10 +26,12 @@ classDiagram
     UtilsMixin <|-- CombinedOrchestrator
 ```
 
-**Entrée principale** :
-- `python -m aggregator.orchestrator` ou `python -m aggregator.orchestrate`
-- Menu interactif basé sur `InteractiveMixin` (option 11 = nettoyage strict sécurisé)
-- CLI avancée via Typer (`aggregator/cli.py`)
+**Point d'entrée principal** :
+- `python run_menu.py` - Interface multilingue simplifiée (recommandé)
+
+**Points d'entrée alternatifs** :
+- `python -m aggregator.orchestrator` ou `python -m aggregator.orchestrate` - Version originale
+- CLI avancée via Typer (`aggregator/cli.py`) - Pour utilisateurs avancés
 
 ## Fonctionnalités
 
@@ -66,23 +68,25 @@ classDiagram
 git clone https://github.com/DiAbL0Tin/aggregator-nicknames.git
 cd aggregator-nicknames
 
-# Lancer l'orchestrateur interactif et utiliser l'option d'installation
-python -m aggregator.orchestrate
+# Installer les dépendances avec Poetry
+pip install poetry
+poetry install
 ```
 
 ## Utilisation
 
-### Interface multilingue simplifiée
+### Démarrage rapide (recommandé)
 
 ```bash
-# Lancer l'interface multilingue (français/anglais)
+# Lancer l'application avec l'interface multilingue (français/anglais)
 python run_menu.py
 ```
 
-L'interface multilingue vous permet de :
+Cette interface principale vous permet de :
 - Choisir votre langue (français par défaut, anglais disponible)
 - Accéder à toutes les fonctionnalités de l'orchestrateur avec une expérience utilisateur localisée
 - Naviguer facilement entre les différentes options
+- Utiliser toutes les fonctionnalités de l'application de manière intuitive
 
 ### Configuration multilingue
 
