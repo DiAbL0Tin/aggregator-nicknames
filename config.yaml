@@ -1,0 +1,100 @@
+sources:
+  - slug: paranames
+    type: git
+    repo: bltlab/paranames
+    ref: main
+  - slug: runescape_2014
+    type: http
+    url: https://github.com/RuneStar/name-cleanup-2014/releases/download/1.1/name-cleanup-2014.zip
+    ref: turn0search2
+  - slug: kaggle_names_gender_country
+    type: http
+    url: https://github.com/philipperemy/name-dataset/archive/refs/heads/master.zip
+    ref: turn1search0
+  - slug: seclists
+    type: git
+    repo: danielmiessler/SecLists
+    ref: turn0search4
+  - slug: hypixel
+    type: git
+    repo: FlorianCassayre/nicknames-datasets
+    ref: turn0search5
+  - slug: kaggle_baby_names
+    type: http
+    url: https://raw.githubusercontent.com/hadley/data-baby-names/master/baby-names.csv
+    ref: turn1search1
+  - slug: chinese_names
+    type: git
+    repo: wainshine/Chinese-Names-Corpus
+    ref: turn0search7
+  - slug: names_by_country
+    type: git
+    repo: sigpwned/popular-names-by-country-dataset
+    ref: turn0search8
+  - slug: wordlists
+    type: git
+    repo: kkrypt0nn/wordlists
+    ref: turn0search9
+  - slug: username_lists
+    type: git
+    repo: nyxgeek/username-lists
+    ref: turn1search0
+  - slug: awesome_wordlists
+    type: git
+    repo: gmelodie/awesome-wordlists
+    ref: turn1search1
+  - slug: international_passwords
+    type: git
+    repo: Lawlez/PassWordList-International
+    ref: turn1search2
+  - slug: security_wordlist
+    type: git
+    repo: DragonJAR/Security-Wordlist
+    ref: turn1search3
+  - slug: german_names
+    type: git
+    repo: PenTestical/german_names
+    ref: turn1search4
+  - slug: japanese_names
+    type: git
+    repo: rgamici/japanese-names
+    ref: turn1search5
+  - slug: japanese_family_names
+    type: git
+    repo: siikamiika/japanese-family-names
+    ref: turn1search6
+  - slug: spanish_names
+    type: git
+    repo: marcboquet/spanish-names
+    ref: turn1search7
+  - slug: nicknames
+    type: git
+    repo: carltonnorthern/nicknames
+    ref: turn1search8
+  - slug: usernames
+    type: git
+    repo: danielmiessler/SecLists
+    branch: master
+    path: Usernames
+    ref: turn1search9
+  - slug: likely_usernames
+    type: git
+    repo: insidetrust/statistically-likely-usernames
+    ref: turn2search0
+  - slug: discord_usernames
+    type: git
+    repo: TahaGorme/100k-usernames
+    ref: turn2search1
+  - slug: common_usernames
+    type: http
+    url: https://raw.githubusercontent.com/danielmiessler/SecLists/master/Usernames/xato-net-10-million-usernames.txt
+    ref: turn2search2
+  - slug: usernames_txt
+    type: http
+    url: https://raw.githubusercontent.com/jeanphorn/wordlist/master/usernames.txt
+    ref: turn2search3
+
+defaults:
+  cache_dir: data/raw
+  force: false
+  workers: 32

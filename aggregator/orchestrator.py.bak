@@ -1,0 +1,1623 @@
+"""
+Orchestrateur interactif pour aggregator Nickname.
+Permet de choisir les opérations à effectuer et affiche des statistiques en temps réel.
+"""
+
+"""Module principal de l'orchestrateur d'aggregator Nickname.
+Ce module sert de point d'entrée pour l'orchestrateur et délègue les fonctionnalités
+aux modules spécialisés dans le package orchestration.
+"""
+
+import asyncio
+import typer
+
+from .orchestration import run_interactive
+
+
+async def run_orchestrator(config_path: str = "config.yaml"):
+    """Point d'entrée pour l'orchestrateur.
+    
+    Args:
+        config_path: Chemin vers le fichier de configuration
+    """
+    await run_interactive(config_path)
+
+
+def main():
+    """Point d'entrée pour l'orchestrateur."""
+    typer.run(asyncio.run(run_orchestrator))
+        self.config_path = config_path
+        self.console = Console()
+        
+        # Vérifier si le fichier de configuration existe
+        if not os.path.exists(config_path):
+            self.config = None
+            self.console.print(f"[yellow]Attention: Le fichier de configuration {config_path} n'existe pas.[/yellow]")
+        else:
+            try:
+                self.config = load_config(config_path)
+                
+                # Chemins des répertoires
+                self.raw_dir = Path(self.config.defaults.cache_dir)
+                self.normalized_dir = self.raw_dir.parent / "normalized"
+                self.deduped_dir = self.raw_dir.parent / "deduped"
+                self.output_dir = self.raw_dir.parent / "output"
+            except Exception as e:
+                self.config = None
+                self.console.print(f"[bold red]Erreur lors du chargement de la configuration: {e}[/bold red]")
+        
+        # Statistiques
+        self.stats = {
+            "sources_total": 0 if self.config is None else len(self.config.sources),
+            "sources_downloaded": 0,
+            "sources_normalized": 0,
+            "entries_raw": 0,
+            "entries_normalized": 0,
+            "entries_deduped": 0,
+            "start_time": time.time(),
+            "download_time": 0,
+            "normalize_time": 0,
+            "dedupe_time": 0,
+            "export_time": 0,
+        }
+        
+        # Résultats des opérations
+        self.source_paths = {}
+        self.normalized_paths = {}
+        self.deduped_path = None
+        self.output_path = None
+    
+    async def run_interactive(self):
+        """
+        Exécute l'orchestrateur en mode interactif.
+        """
+        self.console.clear()
+        self.console.print(Panel.fit("[bold blue]aggregator Nickname - Orchestrateur Interactif[/bold blue]"))
+        
+        # Menu principal
+        choices = [
+            "1. Installer les dépendances et configurer le projet",
+            "2. Télécharger/mettre à jour les sources",
+            "3. Normaliser les données",
+            "4. Scinder les fichiers bruts en chunks de 5 millions de lignes",
+            "5. Dédupliquer les données",
+            "6. Splitter les données dédupliquées",
+            "7. Vider le dossier final",
+            "8. Vider le dossier raw",
+            "9. Vider le cache des données normalisées",
+            "10. Supprimer les chunks, cache et output final",
+            "11. Supprimer tout et repartir d'un projet vide",
+            "12. Exécuter le pipeline complet",
+            "13. Afficher les statistiques",
+            "14. Quitter"
+        ]
+        
+        while True:
+            self.console.print("\n[bold]Choisissez une opération :[/bold]")
+            for choice in choices:
+                self.console.print(choice)
+            
+            choice = await self._get_input("\nVotre choix (1-14): ")
+            
+            if choice == "1":
+                await self.run_installation()
+            elif choice == "2":
+                await self.run_download()
+            elif choice == "3":
+                await self.run_normalize()
+            elif choice == "4":
+                await self.run_split_raw()
+            elif choice == "5":
+                await self.run_dedupe()
+            elif choice == "6":
+                await self.run_split_deduped()
+            elif choice == "7":
+                # Suppression de l'appel à run_clear_final (méthode inexistante) pour éviter toute erreur de type et confusion.
+                # Si un nettoyage final est requis, merci de définir la méthode ou de préciser la logique attendue.
+                pass
+            elif choice == "8":
+                await self.run_clear_raw()
+            elif choice == "9":
+                await self.run_clear_normalized()
+            elif choice == "10":
+                await self.run_clear_temp()
+            elif choice == "11":
+                # Nettoyage strict : tout supprimer sauf la liste blanche (README.md, config.yaml, pyproject.toml, poetry.lock, aggregator/, tests/, .github/)
+                # Cette opération est plus radicale que la remise à zéro classique, et permet de repartir d'un état vierge du projet.
+                await self.run_clear_project_strict()
+            elif choice == "12":
+                await self.run_pipeline()
+            elif choice == "13":
+                self.show_statistics()
+            elif choice == "14":
+                self.console.print("[bold green]Au revoir ![/bold green]")
+                break
+            else:
+                self.console.print("[bold red]Choix invalide. Veuillez réessayer.[/bold red]")
+
+        # Explication pédagogique :
+        # L'option 11 effectue un nettoyage strict en supprimant tout ce qui n'est pas explicitement listé comme essentiel (liste blanche).
+        # L'ancienne option 11 (remise à zéro classique) est remplacée ici par une approche plus sûre et plus radicale, adaptée aux besoins de maintenance avancée du projet.
+
+    
+    async def _get_input(self, prompt: str) -> str:
+        """
+        Obtient une entrée utilisateur de manière asynchrone.
+        
+{{ ... }}
+        Args:
+            prompt: Message d'invite
+            
+        Returns:
+            str: Entrée utilisateur
+        """
+        # Utiliser rich Console pour afficher le prompt et récupérer la saisie utilisateur
+        return await asyncio.to_thread(self.console.input, prompt)
+    
+    async def run_installation(self):
+        """
+        Exécute l'installation des dépendances et la configuration du projet.
+        """
+        self.console.print("\n[bold blue]Installation des dépendances et configuration du projet...[/bold blue]")
+        
+        # Créer la mise en page pour les statistiques en temps réel
+        layout = Layout()
+        layout.split(
+            Layout(name="progress", size=3),
+            Layout(name="info")
+        )
+        
+        # Créer la barre de progression
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn()
+        )
+        install_task = progress.add_task("[bold blue]Installation...", total=100)
+        
+        # Fonction pour mettre à jour les informations
+        def update_info(status: str):
+            table = Table.grid()
+            table.add_column()
+            
+            table.add_row(f"[bold]{status}[/bold]")
+            
+            return table
+        
+        # Utiliser Live pour mettre à jour l'affichage en temps réel
+        with Live(layout, refresh_per_second=4) as live:
+            layout["progress"].update(Panel(progress))
+            layout["info"].update(Panel(update_info("Vérification de l'environnement..."), title="Installation"))
+            
+            try:
+                # 1. Vérifier si Poetry est installé
+                progress.update(install_task, completed=10)
+                layout["info"].update(Panel(update_info("Vérification de Poetry..."), title="Installation"))
+                
+                poetry_installed = await self._check_command("poetry --version")
+                
+                if not poetry_installed:
+                    progress.update(install_task, completed=15)
+                    layout["info"].update(Panel(update_info("Installation de Poetry..."), title="Installation"))
+                    
+                    # Installer Poetry
+                    await self._run_command("curl -sSL https://install.python-poetry.org | python3 -")
+                
+                # 2. Vérifier si le projet est initialisé
+                progress.update(install_task, completed=30)
+                layout["info"].update(Panel(update_info("Vérification du projet..."), title="Installation"))
+                
+                project_dir = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                pyproject_path = project_dir / "pyproject.toml"
+                
+                if not pyproject_path.exists():
+                    progress.update(install_task, completed=35)
+                    layout["info"].update(Panel(update_info("Initialisation du projet avec Poetry..."), title="Installation"))
+                    
+                    # Initialiser le projet avec Poetry
+                    await self._run_command(
+                        "poetry init --name aggregator-nickname --description \"Agrégateur de pseudos, prénoms et noms à partir de multiples sources\" --author \"Manus\" --python \">=3.11\" --no-interaction",
+                        cwd=str(project_dir)
+                    )
+                
+                # 3. Installer les dépendances
+                progress.update(install_task, completed=50)
+                layout["info"].update(Panel(update_info("Installation des dépendances..."), title="Installation"))
+                
+                # Installer les dépendances principales
+                await self._run_command(
+                    "poetry add polars pydantic aiohttp unidecode rich tqdm typer gitpython pyyaml pyarrow",
+                    cwd=str(project_dir)
+                )
+                
+                progress.update(install_task, completed=70)
+                layout["info"].update(Panel(update_info("Installation des dépendances de développement..."), title="Installation"))
+                
+                # Installer les dépendances de développement
+                await self._run_command(
+                    "poetry add --group dev pytest ruff pyright pytest-cov",
+                    cwd=str(project_dir)
+                )
+                
+                # 4. Créer les répertoires nécessaires
+                progress.update(install_task, completed=80)
+                layout["info"].update(Panel(update_info("Création des répertoires..."), title="Installation"))
+                
+                # Créer les répertoires de données
+                if self.config is None:
+                    data_dir = project_dir / "data"
+                    raw_dir = data_dir / "raw"
+                    normalized_dir = data_dir / "normalized"
+                    deduped_dir = data_dir / "deduped"
+                    output_dir = data_dir / "output"
+                else:
+                    raw_dir = self.raw_dir
+                    normalized_dir = self.normalized_dir
+                    deduped_dir = self.deduped_dir
+                    output_dir = self.output_dir
+                
+                raw_dir.mkdir(parents=True, exist_ok=True)
+                normalized_dir.mkdir(parents=True, exist_ok=True)
+                deduped_dir.mkdir(parents=True, exist_ok=True)
+                output_dir.mkdir(parents=True, exist_ok=True)
+                
+                # 5. Vérifier la configuration
+                progress.update(install_task, completed=90)
+                layout["info"].update(Panel(update_info("Vérification de la configuration..."), title="Installation"))
+                
+                config_path = project_dir / "config.yaml"
+                if not config_path.exists() and self.config_path != str(config_path):
+                    # Copier le fichier de configuration s'il existe
+                    if os.path.exists(self.config_path):
+                        import shutil
+                        shutil.copy2(self.config_path, str(config_path))
+                    else:
+                        # Créer un fichier de configuration minimal
+                        with open(config_path, "w", encoding="utf-8") as f:
+                            f.write("""sources:
+  - slug: paranames
+    type: wikidata
+    access: zenodo
+    ref: turn0search8
+  - slug: runescape_2014
+    type: git
+    repo: RuneStar/name-cleanup-2014
+    ref: turn0search2
+defaults:
+  cache_dir: data/raw
+  force: false
+  workers: 32
+""")
+                
+                # 6. Finalisation
+                progress.update(install_task, completed=100)
+                layout["info"].update(Panel(update_info("Installation terminée !"), title="Installation"))
+                
+                # Recharger la configuration si nécessaire
+                if self.config is None:
+                    try:
+                        self.config = load_config(self.config_path)
+                        
+                        # Mettre à jour les chemins des répertoires
+                        self.raw_dir = Path(self.config.defaults.cache_dir)
+                        self.normalized_dir = self.raw_dir.parent / "normalized"
+                        self.deduped_dir = self.raw_dir.parent / "deduped"
+                        self.output_dir = self.raw_dir.parent / "output"
+                        
+                        # Mettre à jour les statistiques
+                        self.stats["sources_total"] = len(self.config.sources)
+                    except Exception as e:
+                        self.console.print(f"[bold red]Erreur lors du rechargement de la configuration: {e}[/bold red]")
+                
+                # Afficher le résultat
+                self.console.print(f"\n[green]✓[/green] Installation terminée avec succès !")
+                self.console.print(f"[green]✓[/green] Dépendances installées")
+                self.console.print(f"[green]✓[/green] Répertoires créés")
+                self.console.print(f"[green]✓[/green] Configuration vérifiée")
+            
+            except Exception as e:
+                self.console.print(f"\n[bold red]Erreur lors de l'installation: {e}[/bold red]")
+    
+    async def _check_command(self, command: str) -> bool:
+        """
+        Vérifie si une commande est disponible.
+        
+        Args:
+            command: Commande à vérifier
+            
+        Returns:
+            bool: True si la commande est disponible, False sinon
+        """
+        try:
+            process = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            await process.communicate()
+            return process.returncode == 0
+        except:
+            return False
+    
+    async def _run_command(self, command: str, cwd: Optional[str] = None) -> Tuple[str, str]:
+        """
+        Exécute une commande shell de manière asynchrone.
+        
+        Args:
+            command: Commande à exécuter
+            cwd: Répertoire de travail
+            
+        Returns:
+            Tuple[str, str]: Sortie standard et erreur standard
+        """
+        process = await asyncio.create_subprocess_shell(
+            command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=cwd
+        )
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode != 0:
+            raise RuntimeError(f"Erreur lors de l'exécution de la commande: {stderr.decode()}")
+        
+        return stdout.decode(), stderr.decode()
+    
+    async def run_download(self):
+        """
+        Exécute l'étape de téléchargement avec statistiques en temps réel.
+        """
+        self.console.print("\n[bold blue]Téléchargement des sources...[/bold blue]")
+        
+        # Vérifier si la configuration est chargée
+        if self.config is None:
+            self.console.print("[bold red]La configuration n'est pas chargée. Veuillez d'abord installer et configurer le projet.[/bold red]")
+            return
+        
+        # Demander si on force le téléchargement
+        force = await self._get_input("Forcer le téléchargement même si le cache existe ? (o/N): ")
+        force = force.lower() == "o"
+        
+        if force:
+            self.config.defaults.force = True
+        
+        # Créer la mise en page pour les statistiques en temps réel
+        layout = Layout()
+        layout.split(
+            Layout(name="progress", size=3),
+            Layout(name="stats")
+        )
+        
+        # Créer la barre de progression
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn()
+        )
+        download_task = progress.add_task("[bold blue]Téléchargement...", total=len(self.config.sources))
+        
+        # Fonction pour mettre à jour les statistiques
+        def update_stats():
+            table = Table.grid()
+            table.add_column()
+            table.add_column()
+            
+            table.add_row("Sources téléchargées:", f"{self.stats['sources_downloaded']}/{self.stats['sources_total']}")
+            table.add_row("Temps écoulé:", f"{time.time() - self.stats['start_time']:.2f} secondes")
+            
+            return table
+        
+        # Exécuter le téléchargement avec mise à jour en temps réel
+        start_time = time.time()
+        
+        # Créer un callback pour mettre à jour les statistiques
+        async def download_callback(slug: str):
+            self.stats['sources_downloaded'] += 1
+            progress.update(download_task, completed=self.stats['sources_downloaded'])
+        
+        # Utiliser Live pour mettre à jour l'affichage en temps réel
+        with Live(layout, refresh_per_second=4) as live:
+            layout["progress"].update(Panel(progress))
+            layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+            
+            try:
+                # Exécuter le téléchargement avec le callback
+                self.source_paths = await download_sources(self.config_path, callback=download_callback)
+                
+                # Mettre à jour les statistiques finales
+                self.stats['download_time'] = time.time() - start_time
+                
+                # Compter le nombre d'entrées brutes
+                self.stats['entries_raw'] = await self._count_entries_raw()
+                
+                # Mettre à jour l'affichage une dernière fois
+                layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+                
+                # Afficher le résultat
+                self.console.print(f"\n[green]✓[/green] Téléchargement terminé: {len(self.source_paths)} sources")
+                self.console.print(f"[green]✓[/green] Temps total: {self.stats['download_time']:.2f} secondes")
+                self.console.print(f"[green]✓[/green] Nombre d'entrées brutes: {self.stats['entries_raw']}")
+            
+            except Exception as e:
+                self.console.print(f"\n[bold red]Erreur lors du téléchargement: {e}[/bold red]")
+    
+    async def run_normalize(self):
+        """
+        Exécute l'étape de normalisation avec statistiques en temps réel.
+        """
+        self.console.print("\n[bold blue]Normalisation des données...[/bold blue]")
+        
+        # Vérifier si la configuration est chargée
+        if self.config is None:
+            self.console.print("[bold red]La configuration n'est pas chargée. Veuillez d'abord installer et configurer le projet.[/bold red]")
+            return
+        
+        # Vérifier si les sources ont été téléchargées
+        if not self.source_paths:
+            try:
+                self.console.print("[yellow]Les sources n'ont pas été téléchargées. Téléchargement en cours...[/yellow]")
+                self.source_paths = await download_sources(self.config_path)
+            except Exception as e:
+                self.console.print(f"[bold red]Erreur lors du téléchargement: {e}[/bold red]")
+                return
+        
+        # Vérification des fichiers bruts par source
+        norm = Normalizer(self.config)
+        for slug, path in self.source_paths.items():
+            fichiers = norm._find_data_files(path)
+            if not fichiers:
+                self.console.print(f"[yellow]Aucun fichier trouvé pour {slug} dans {path}[/yellow]")
+            else:
+                self.console.print(f"[green]Fichiers trouvés pour {slug} dans {path}: {len(fichiers)}[/green]")
+
+        # Demander si on force la normalisation
+        force = await self._get_input("Forcer la normalisation même si le cache existe ? (o/N): ")
+        force = force.lower() == "o"
+        
+        if force:
+            self.config.defaults.force = True
+            
+            # Suppression du cache normalisé existant pour repartir à zéro
+            try:
+                if self.normalized_dir.exists():
+                    shutil.rmtree(self.normalized_dir)
+                self.normalized_dir.mkdir(parents=True, exist_ok=True)
+                self.console.print(f"[yellow]Cache normalisation supprimé: {self.normalized_dir}[/yellow]")
+            except Exception as e:
+                self.console.print(f"[bold red]Erreur lors de la suppression du cache: {e}[/bold red]")
+        
+        # Réinitialisation des statistiques de normalisation
+        self.stats['sources_normalized'] = 0
+        self.stats['sources_total'] = len(self.source_paths)
+        
+        # Créer la mise en page pour les statistiques en temps réel
+        layout = Layout()
+        layout.split(
+            Layout(name="progress", size=3),
+            Layout(name="stats")
+        )
+        
+        # Créer la barre de progression
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn()
+        )
+        normalize_task = progress.add_task("[bold blue]Normalisation...", total=len(self.source_paths))
+        
+        # Fonction pour mettre à jour les statistiques
+        def update_stats():
+            table = Table.grid()
+            table.add_column()
+            table.add_column()
+            
+            table.add_row("Sources normalisées:", f"{self.stats['sources_normalized']}/{self.stats['sources_total']}")
+            table.add_row("Temps écoulé:", f"{time.time() - self.stats['start_time']:.2f} secondes")
+            
+            return table
+        
+        # Exécuter la normalisation avec mise à jour en temps réel
+        start_time = time.time()
+        # Mettre à jour le temps de départ pour l'affichage
+        self.stats['start_time'] = start_time
+        
+        # Créer un callback pour mettre à jour les statistiques
+        def normalize_callback(slug: str):
+            # Mise à jour du compteur
+            self.stats['sources_normalized'] += 1
+            # Met à jour la barre avec le slug courant et le pourcentage
+            progress.update(
+                normalize_task,
+                completed=self.stats['sources_normalized'],
+                description=f"[bold blue]Normalisation de {slug} ({self.stats['sources_normalized']}/{self.stats['sources_total']})"
+            )
+        
+        # Utiliser Live pour mettre à jour l'affichage en temps réel
+        with Live(layout, refresh_per_second=4) as live:
+            layout["progress"].update(Panel(progress))
+            layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+            
+            try:
+                # Exécuter la normalisation dans un thread pour libérer l'UI Live
+                self.normalized_paths = await asyncio.to_thread(normalize_sources, self.config_path, self.source_paths, normalize_callback)
+                
+                # Mettre à jour les statistiques finales
+                self.stats['normalize_time'] = time.time() - start_time
+                
+                # Compter le nombre d'entrées normalisées
+                self.stats['entries_normalized'] = self._count_entries_normalized()
+                
+                # Mettre à jour l'affichage une dernière fois
+                layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+                
+                # Compte rendu détaillé de la normalisation
+                table_summary = Table(title="Compte rendu de la normalisation")
+                table_summary.add_column("Clé", justify="left")
+                table_summary.add_column("Valeur", justify="right")
+                table_summary.add_row("Sources normalisées", f"{len(self.normalized_paths)}/{self.stats['sources_total']}")
+                table_summary.add_row("Entrées normalisées", str(self.stats['entries_normalized']))
+                table_summary.add_row("Temps total", f"{self.stats['normalize_time']:.2f} secondes")
+                self.console.print(table_summary)
+                
+                # Sources échouées
+                failed = set(self.source_paths.keys()) - set(self.normalized_paths.keys())
+                if failed:
+                    failed_list = ", ".join(sorted(failed))
+                    self.console.print(f"[yellow]Sources échouées ({len(failed)}/{self.stats['sources_total']}): {failed_list}[/yellow]")
+                
+                # Afficher raisons des échecs
+                norm = Normalizer(self.config)
+                for slug in failed:
+                    try:
+                        norm.normalize_source(slug, self.source_paths[slug])
+                    except Exception as e:
+                        self.console.print(f"[bold red]Échec {slug}: {e}[/bold red]")
+                
+                # Afficher le résultat
+                self.console.print(f"\n[green]✓[/green] Normalisation terminée: {len(self.normalized_paths)} sources")
+                self.console.print(f"[green]✓[/green] Temps total: {self.stats['normalize_time']:.2f} secondes")
+                self.console.print(f"[green]✓[/green] Nombre d'entrées normalisées: {self.stats['entries_normalized']}")
+            
+            except Exception as e:
+                self.console.print(f"\n[bold red]Erreur lors de la normalisation: {e}[/bold red]")
+        
+        # Compte rendu final de la normalisation
+        table_summary = Table(title="Compte rendu de la normalisation")
+        table_summary.add_column("Clé", justify="left")
+        table_summary.add_column("Valeur", justify="right")
+        table_summary.add_row("Sources normalisées", f"{len(self.normalized_paths)}/{self.stats['sources_total']}")
+        table_summary.add_row("Entrées normalisées", str(self.stats['entries_normalized']))
+        table_summary.add_row("Temps total", f"{self.stats['normalize_time']:.2f} secondes")
+        self.console.print(table_summary)
+        
+        # Sources échouées et explications
+        failed = set(self.source_paths.keys()) - set(self.normalized_paths.keys())
+        if failed:
+            failed_list = ", ".join(sorted(failed))
+            self.console.print(f"[yellow]Sources échouées ({len(failed)}/{self.stats['sources_total']}): {failed_list}[/yellow]")
+            # Afficher la raison de l'échec pour chaque source
+            for slug in failed:
+                try:
+                    normalizer = Normalizer(self.config)
+                    normalizer.normalize_source(slug, self.source_paths[slug])
+                except Exception as e:
+                    self.console.print(f"[bold red]Échec de la normalisation de {slug}: {e}[/bold red]")
+    
+    async def run_dedupe(self):
+        """
+        Exécute l'étape de déduplication avec statistiques en temps réel.
+        """
+        self.console.print("\n[bold blue]Déduplication des données...[/bold blue]")
+        
+        # Vérifier si la configuration est chargée
+        if self.config is None:
+            self.console.print("[bold red]La configuration n'est pas chargée. Veuillez d'abord installer et configurer le projet.[/bold red]")
+            return
+        
+        # Vérifier si les sources ont été normalisées
+        if not self.normalized_paths:
+            try:
+                self.console.print("[yellow]Les sources n'ont pas été normalisées. Normalisation en cours...[/yellow]")
+                
+                if not self.source_paths:
+                    self.console.print("[yellow]Les sources n'ont pas été téléchargées. Téléchargement en cours...[/yellow]")
+                    self.source_paths = await download_sources(self.config_path)
+                
+                self.normalized_paths = await asyncio.to_thread(normalize_sources, self.config_path, self.source_paths)
+            except Exception as e:
+                self.console.print(f"[bold red]Erreur lors de la préparation: {e}[/bold red]")
+                return
+        
+        # Déduplication par chunks de texte brut si présents
+        split_dir = self.output_dir / "splits"
+        if split_dir.exists() and any(split_dir.glob("*.txt")):
+            final_path = await asyncio.to_thread(
+                deduplicate_chunks,
+                split_dir,
+                self.deduped_dir / "deduped_chunks.txt",
+                self.console
+            )
+            self.deduped_path = final_path
+            count = sum(1 for _ in open(final_path, "r", encoding="utf-8"))
+            self.stats['entries_deduped'] = count
+            self.console.print(f"[green]Entrées uniques après chunks : {count}[/green]")
+            return
+        
+        # Demander si on force la déduplication
+        force = await self._get_input("Forcer la déduplication même si le cache existe ? (o/N): ")
+        force = force.lower() == "o"
+        
+        if force:
+            self.config.defaults.force = True
+        
+        # Demander si on utilise l'approche haute performance
+        high_volume = await self._get_input("Utiliser l'approche haute performance pour les grands volumes ? (O/n): ")
+        high_volume = high_volume.lower() != "n"
+        
+        # Exécution de la déduplication avec logs détaillés
+        start_time = time.time()
+        try:
+            self.deduped_path = deduplicate_sources(self.config_path, self.normalized_paths, high_volume=high_volume)
+            self.stats['dedupe_time'] = time.time() - start_time
+            self.stats['entries_deduped'] = self._count_entries_deduped()
+            # Mettre à jour le nombre d'entrées normalisées pour calculer le taux sans division par zéro
+            self.stats['entries_normalized'] = self._count_entries_normalized()
+        except Exception as e:
+            self.console.print(f"[bold red]Erreur lors de la déduplication: {e}[/bold red]")
+            return
+        
+        # Résumé final de la déduplication
+        table = Table(title="Statistiques de déduplication")
+        table.add_column("Metric", justify="left")
+        table.add_column("Valeur", justify="right")
+        table.add_row("Temps écoulé", f"{self.stats['dedupe_time']:.2f} secondes")
+        table.add_row("Entrées normalisées", str(self.stats['entries_normalized']))
+        table.add_row("Entrées dédupliquées", str(self.stats['entries_deduped']))
+        # Calcul du taux de déduplication en évitant la division par zéro
+        if self.stats['entries_normalized'] > 0:
+            taux = (1 - self.stats['entries_deduped'] / self.stats['entries_normalized']) * 100
+        else:
+            taux = 0.0
+        table.add_row("Taux de déduplication", f"{taux:.2f}%")
+        self.console.print(table)
+    
+    async def run_pipeline(self):
+        """
+        Exécute le pipeline complet avec statistiques en temps réel.
+        """
+        self.console.print("\n[bold blue]Exécution du pipeline complet...[/bold blue]")
+        
+        # Vérifier si la configuration est chargée
+        if self.config is None:
+            self.console.print("[bold red]La configuration n'est pas chargée. Veuillez d'abord installer et configurer le projet.[/bold red]")
+            return
+        
+        # Nettoyage strict du projet (option 11) : supprime tout sauf la whitelist (README.md, config.yaml, pyproject.toml, poetry.lock, aggregator/, tests/, .github/)
+        # Cette étape garantit un état vierge, plus sûr et cohérent que l'ancien reset complet (run_clear_all)
+        await self.run_clear_project_strict()
+        
+        # Demander si on force le traitement
+        force = await self._get_input("Forcer le traitement même si le cache existe ? (o/N): ")
+        force = force.lower() == "o"
+        
+        if force:
+            self.config.defaults.force = True
+        
+        # Demander si on utilise l'approche haute performance
+        high_volume = await self._get_input("Utiliser l'approche haute performance pour les grands volumes ? (O/n): ")
+        high_volume = high_volume.lower() != "n"
+        
+        # Demander le nom du fichier de sortie
+        output = await self._get_input("Nom du fichier de sortie (aggregator_nicks.txt): ")
+        if not output:
+            output = "aggregator_nicks.txt"
+        
+        # Créer la mise en page pour les statistiques en temps réel
+        layout = Layout()
+        layout.split(
+            Layout(name="progress", size=5),
+            Layout(name="stats")
+        )
+        
+        # Créer les barres de progression
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn()
+        )
+        download_task = progress.add_task("[bold blue]Téléchargement...", total=len(self.config.sources))
+        normalize_task = progress.add_task("[bold blue]Normalisation...", total=len(self.config.sources), visible=False)
+        split_task = progress.add_task("[bold blue]Scission...", total=100, visible=False)
+        dedupe_task = progress.add_task("[bold blue]Déduplication...", total=100, visible=False)
+        export_task = progress.add_task("[bold blue]Export...", total=100, visible=False)
+        
+        # Fonction pour mettre à jour les statistiques
+        def update_stats():
+            table = Table.grid()
+            table.add_column()
+            table.add_column()
+            
+            table.add_row("Sources téléchargées:", f"{self.stats['sources_downloaded']}/{self.stats['sources_total']}")
+            table.add_row("Sources normalisées:", f"{self.stats['sources_normalized']}/{self.stats['sources_total']}")
+            table.add_row("Entrées brutes:", f"{self.stats['entries_raw']}")
+            table.add_row("Entrées normalisées:", f"{self.stats['entries_normalized']}")
+            table.add_row("Entrées dédupliquées:", f"{self.stats['entries_deduped']}")
+            table.add_row("Temps total écoulé:", f"{time.time() - self.stats['start_time']:.2f} secondes")
+            
+            return table
+        
+        # Réinitialiser les statistiques
+        self.stats['start_time'] = time.time()
+        self.stats['sources_downloaded'] = 0
+        self.stats['sources_normalized'] = 0
+        
+        # Utiliser Live pour mettre à jour l'affichage en temps réel
+        with Live(layout, refresh_per_second=4) as live:
+            layout["progress"].update(Panel(progress))
+            layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+            
+            try:
+                # 1. Téléchargement
+                download_start = time.time()
+                
+                # Créer un callback pour mettre à jour les statistiques
+                async def download_callback(slug: str):
+                    self.stats['sources_downloaded'] += 1
+                    progress.update(download_task, completed=self.stats['sources_downloaded'])
+                    layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+                
+                self.source_paths = await download_sources(self.config_path, callback=download_callback)
+                self.stats['download_time'] = time.time() - download_start
+                self.stats['entries_raw'] = await self._count_entries_raw()
+                
+                # 2. Normalisation
+                normalize_start = time.time()
+                progress.update(download_task, visible=False)
+                progress.update(normalize_task, visible=True)
+                
+                # Créer un callback pour mettre à jour les statistiques
+                def normalize_callback(slug: str):
+                    self.stats['sources_normalized'] += 1
+                    progress.update(normalize_task, completed=self.stats['sources_normalized'])
+                    layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+                
+                # Exécuter la normalisation dans un thread pour libérer l'UI Live
+                self.normalized_paths = await asyncio.to_thread(normalize_sources, self.config_path, self.source_paths, normalize_callback)
+                self.stats['normalize_time'] = time.time() - normalize_start
+                self.stats['entries_normalized'] = self._count_entries_normalized()
+                
+                # 3. Scission des fichiers bruts en chunks
+                self.console.print("[bold blue]Scission des fichiers bruts en chunks...[/bold blue]")
+                await asyncio.to_thread(
+                    split_raw_files,
+                    input_dir=self.raw_dir,
+                    output_dir=self.output_dir / "splits",
+                    max_lines=5_000_000,
+                    console=self.console
+                )
+                
+                # 4. Déduplication
+                dedupe_start = time.time()
+                progress.update(normalize_task, visible=False)
+                progress.update(split_task, visible=False)
+                progress.update(dedupe_task, visible=True)
+                
+                # Mettre à jour la progression de manière artificielle
+                for i in range(1, 101):
+                    progress.update(dedupe_task, completed=i)
+                    if i % 10 == 0:
+                        layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+                    await asyncio.sleep(0.01)
+                
+                self.deduped_path = deduplicate_sources(self.config_path, self.normalized_paths, high_volume=high_volume)
+                self.stats['dedupe_time'] = time.time() - dedupe_start
+                self.stats['entries_deduped'] = self._count_entries_deduped()
+                
+                # 5. Split des données dédupliquées (option 6)
+                # Par défaut, on splitte en fichiers de 500 lignes pour le mode pipeline auto
+                self.console.print("[bold blue]Split des données dédupliquées en fichiers de 500 lignes...[/bold blue]")
+                await self.run_split_deduped(max_lines=500)
+
+                # 6. Export
+                export_start = time.time()
+                progress.update(dedupe_task, visible=False)
+                progress.update(export_task, visible=True)
+                
+                # Mettre à jour la progression de manière artificielle
+                for i in range(1, 101):
+                    progress.update(export_task, completed=i)
+                    await asyncio.sleep(0.01)
+                
+                if keep_original:
+                    self.output_path = export_data(self.config_path, self.deduped_path, self.normalized_paths, keep_original=True)
+                else:
+                    self.output_path = export_data(self.config_path, self.deduped_path, output_filename=output)
+                
+                self.stats['export_time'] = time.time() - export_start
+                
+                # Mettre à jour l'affichage une dernière fois
+                layout["stats"].update(Panel(update_stats(), title="Statistiques"))
+                
+                # Afficher le résultat
+                self.console.print(f"\n[green]✓[/green] Pipeline terminé avec succès!")
+                self.console.print(f"[green]✓[/green] Temps total: {time.time() - self.stats['start_time']:.2f} secondes")
+                self.console.print(f"[green]✓[/green] Fichier exporté: {self.output_path}")
+            
+            except Exception as e:
+                self.console.print(f"\n[bold red]Erreur lors de l'exécution du pipeline: {e}[/bold red]")
+    
+    def show_statistics(self):
+        """
+        Affiche les statistiques complètes.
+        """
+        self.console.print("\n[bold blue]Statistiques[/bold blue]")
+        
+        table = Table(title="Statistiques aggregator Nickname")
+        table.add_column("Métrique", style="cyan")
+        table.add_column("Valeur", style="green")
+        
+        table.add_row("Sources configurées", str(self.stats['sources_total']))
+        table.add_row("Sources téléchargées", str(self.stats['sources_downloaded']))
+        table.add_row("Sources normalisées", str(self.stats['sources_normalized']))
+        table.add_row("Entrées brutes", str(self.stats['entries_raw']))
+        table.add_row("Entrées normalisées", str(self.stats['entries_normalized']))
+        table.add_row("Entrées dédupliquées", str(self.stats['entries_deduped']))
+        
+        if self.stats['entries_normalized'] > 0 and self.stats['entries_deduped'] > 0:
+            dedup_rate = (1 - self.stats['entries_deduped'] / self.stats['entries_normalized']) * 100
+            table.add_row("Taux de déduplication", f"{dedup_rate:.2f}%")
+        
+        table.add_row("Temps de téléchargement", f"{self.stats['download_time']:.2f} secondes")
+        table.add_row("Temps de normalisation", f"{self.stats['normalize_time']:.2f} secondes")
+        table.add_row("Temps de déduplication", f"{self.stats['dedupe_time']:.2f} secondes")
+        table.add_row("Temps d'export", f"{self.stats['export_time']:.2f} secondes")
+        
+        total_time = self.stats['download_time'] + self.stats['normalize_time'] + self.stats['dedupe_time'] + self.stats['export_time']
+        table.add_row("Temps total", f"{total_time:.2f} secondes")
+        
+        self.console.print(table)
+    
+    async def _count_entries_raw(self) -> int:
+        """
+        Compte le nombre d'entrées brutes.
+        
+        Returns:
+            int: Nombre d'entrées brutes
+        """
+        count = 0
+        for path in self.source_paths.values():
+            if path.is_dir():
+                # Compter les lignes dans tous les fichiers texte
+                for file_path in path.glob("**/*"):
+                    if file_path.is_file() and file_path.suffix.lower() in [".txt", ".csv", ".tsv"]:
+                        try:
+                            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                                count += sum(1 for _ in f)
+                        except:
+                            pass
+            elif path.is_file():
+                # Compter les lignes dans le fichier
+                try:
+                    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                        count += sum(1 for _ in f)
+                except:
+                    pass
+        
+        return count
+    
+    def _count_entries_normalized(self) -> int:
+        """
+        Compte le nombre d'entrées normalisées.
+        
+        Returns:
+            int: Nombre d'entrées normalisées
+        """
+        count = 0
+        for path in self.normalized_paths.values():
+            try:
+                df = pl.read_parquet(path)
+                count += df.shape[0]
+            except:
+                pass
+        
+        return count
+    
+    def _count_entries_deduped(self) -> int:
+        """
+        Compte le nombre d'entrées dédupliquées.
+        
+        Returns:
+            int: Nombre d'entrées dédupliquées
+        """
+        if self.deduped_path and self.deduped_path.exists():
+            try:
+                df = pl.read_parquet(self.deduped_path)
+                return df.shape[0]
+            except:
+                pass
+        
+        return 0
+        
+    async def run_clear_raw(self):
+        """
+        Vide le dossier des données brutes (raw).
+        Cette fonction supprime tous les fichiers et sous-répertoires du dossier raw
+        pour permettre un nouveau téléchargement complet des sources.
+        
+        La suppression est forcée pour les fichiers verrouillés, notamment les fichiers Git.
+        En cas d'erreur sur un fichier ou dossier spécifique, la fonction continue
+        avec les autres éléments et tente plusieurs approches de suppression.
+        """
+        if not hasattr(self, 'raw_dir') or not self.raw_dir.exists():
+            self.console.print("[yellow]Le dossier raw n'existe pas ou n'est pas configuré.[/yellow]")
+            return
+        
+        # Importer les modules nécessaires
+        import shutil
+        import os
+        import time
+        import subprocess
+        from pathlib import Path
+        
+        # Fonction pour gérer les erreurs lors de la suppression
+        def handle_error(func, path, exc_info):
+            # Rendre le fichier accessible en écriture
+            os.chmod(path, 0o600)
+            # Essayer à nouveau
+            func(path)
+            
+        # Fonction pour supprimer un dossier avec plusieurs tentatives
+        def force_rmtree(path, max_retries=5):
+            path = Path(path)
+            
+            # Essai 1: Utiliser rmtree avec gestion d'erreur
+            try:
+                shutil.rmtree(path, onerror=handle_error)
+                return True
+            except Exception:
+                pass
+                
+            # Essai 2: Supprimer les attributs en lecture seule et réessayer
+            try:
+                for p in path.glob('**/*'):
+                    if p.exists():
+                        p.chmod(0o600)
+                shutil.rmtree(path, ignore_errors=True)
+                return True
+            except Exception:
+                pass
+                
+            # Essai 3: Utiliser la commande système (Windows)
+            if os.name == 'nt':
+                try:
+                    subprocess.run(['rmdir', '/S', '/Q', str(path)], 
+                                  shell=True, check=False, capture_output=True)
+                    # Vérifier si le répertoire existe toujours
+                    if not path.exists():
+                        return True
+                except Exception:
+                    pass
+            
+            # Si toutes les tentatives échouent, recréer un dossier vide à la place
+            if path.exists():
+                # Dernier recours: tenter de vider le contenu individuellement
+                try:
+                    for item in path.glob('*'):
+                        if item.is_file():
+                            try:
+                                item.unlink(missing_ok=True)
+                            except:
+                                pass
+                        elif item.is_dir():
+                            try:
+                                force_rmtree(item, max_retries-1)
+                            except:
+                                pass
+                    return True
+                except Exception:
+                    return False
+            return True
+        
+        errors = []
+        success_count = 0
+        total_count = 0
+        
+        try:
+            # Créer un panneau d'information avec une barre de progression
+            with self.console.status("[bold blue]Suppression des fichiers dans le dossier raw...[/bold blue]") as status:
+                
+                # Compter les fichiers pour l'information
+                file_count = sum(1 for _ in self.raw_dir.glob('**/*') if _.is_file())
+                self.console.print(f"[bold]Suppression de {file_count} fichiers dans {self.raw_dir}[/bold]")
+                
+                # Lister tous les éléments dans le dossier raw
+                items = list(self.raw_dir.glob('*'))
+                total_count = len(items)
+                
+                # Supprimer tous les fichiers et sous-répertoires avec force
+                for item in items:
+                    try:
+                        if item.is_file():
+                            # Rendre le fichier accessible en écriture
+                            item.chmod(0o600)
+                            item.unlink(missing_ok=True)
+                            success_count += 1
+                        elif item.is_dir():
+                            if force_rmtree(item):
+                                success_count += 1
+                    except Exception as e:
+                        errors.append((str(item), str(e)))
+                        
+            # Message de confirmation
+            if errors:
+                self.console.print(f"[yellow]Attention: {len(errors)} éléments n'ont pas pu être supprimés.[/yellow]")
+                self.console.print(f"[green]{success_count} éléments sur {total_count} ont été supprimés avec succès.[/green]")
+            else:  
+                self.console.print("[bold green]✓ Le dossier raw a été entièrement vidé avec succès ![/bold green]")
+                
+            self.console.print("[blue]Vous pouvez maintenant relancer le téléchargement des sources.[/blue]")
+            
+            # Recréer le dossier raw s'il a été supprimé
+            if not self.raw_dir.exists():
+                self.raw_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Réinitialisation des statistiques liées au téléchargement
+            self.stats['sources_downloaded'] = 0
+            self.stats['entries_raw'] = 0
+            self.source_paths = {}
+            
+        except Exception as e:
+            self.console.print(f"[bold red]Erreur globale lors de la suppression des fichiers: {e}[/bold red]")
+            
+            # Tentative de nettoyage radical en dernier recours
+            try:
+                self.console.print("[yellow]Tentative de nettoyage radical...[/yellow]")
+                
+                # Recréer le répertoire raw de zéro
+                if os.name == 'nt':
+                    # Sur Windows, utiliser RD /S /Q qui est plus brutal
+                    subprocess.run(['rd', '/S', '/Q', str(self.raw_dir)], 
+                                  shell=True, check=False, capture_output=True)
+                else:
+                    # Sur Unix, utiliser rm -rf
+                    subprocess.run(['rm', '-rf', str(self.raw_dir)], 
+                                  shell=True, check=False, capture_output=True)
+                    
+                # Recréer le dossier
+                time.sleep(1)  # Attendre que le système termine l'opération
+                self.raw_dir.mkdir(parents=True, exist_ok=True)
+                self.console.print("[green]Nettoyage radical terminé. Le dossier raw a été recréé vide.[/green]")
+                
+                # Réinitialisation des statistiques
+                self.stats['sources_downloaded'] = 0
+                self.stats['entries_raw'] = 0
+                self.source_paths = {}
+                
+            except Exception as e2:
+                self.console.print(f"[bold red]Echec du nettoyage radical: {e2}[/bold red]")
+                self.console.print("[red]Veuillez fermer toutes les applications qui pourraient utiliser ces fichiers et réessayer.[/red]")
+    
+    async def run_clear_normalized(self):
+        """
+        Vide le cache des données normalisées.
+        """
+        self.console.print("\n[bold blue]Vider le cache des données normalisées...[/bold blue]")
+        dir_norm = self.normalized_dir
+        if not dir_norm.exists():
+            self.console.print("[yellow]Le dossier normalized n'existe pas ou n'est pas configuré.[/yellow]")
+            return
+        shutil.rmtree(dir_norm, ignore_errors=True)
+        dir_norm.mkdir(parents=True, exist_ok=True)
+        self.normalized_paths = {}
+        self.stats['entries_normalized'] = 0
+        self.console.print("[green]✓ Cache normalisé vidé.[/green]")
+    
+    async def run_clear_temp(self):
+        """
+        Supprime les chunks, le cache dédupliqué et l'output final.
+        """
+        self.console.print("\n[bold blue]Suppression des splits, déduplication et output...[/bold blue]")
+        targets = [self.output_dir / "splits", self.deduped_dir, self.output_dir]
+        for d in targets:
+            if d.exists():
+                shutil.rmtree(d, ignore_errors=True)
+                self.console.print(f"[green]✓ {d} supprimé.[/green]")
+            else:
+                self.console.print(f"[yellow]{d} n'existe pas.[/yellow]")
+            if d != self.output_dir:
+                d.mkdir(parents=True, exist_ok=True)
+        self.console.print("[green]✓ Suppression temporaire terminée.[/green]")
+
+    async def run_clear_project_strict(self):
+        """
+        Nettoyage radical : supprime tout sauf la liste blanche (README.md, config.yaml, pyproject.toml, poetry.lock, aggregator/, tests/, .github/).
+        Vide également complètement le dossier data s'il existe.
+        Utilise plusieurs stratégies robustes pour assurer la suppression complète des fichiers et dossiers, même verrouillés.
+        """
+        import os
+        import subprocess
+        import asyncio
+        import tempfile
+        import stat
+{{ ... }}
+        import random
+        import time
+        from pathlib import Path
+        import shutil
+        from contextlib import suppress
+        
+        ROOT = Path(__file__).resolve().parent.parent
+        whitelist = {
+            'README.md', 'config.yaml', 'pyproject.toml', 'poetry.lock',
+            'aggregator', 'tests', '.github'
+        }
+    
+        # Fonction pour rendre un répertoire accessible en écriture (résoudre les problèmes de permissions)
+        async def make_writable(path):
+            """Rend un répertoire et son contenu accessible en écriture pour faciliter la suppression."""
+            if not path.exists():
+                return
+                
+            try:
+                if path.is_file() or path.is_symlink():
+                    # Rendre le fichier accessible en écriture
+                    os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
+                elif path.is_dir():
+                    # Rendre le répertoire accessible en écriture
+                    os.chmod(path, stat.S_IWRITE | stat.S_IREAD | stat.S_IEXEC)
+                    # Traiter récursivement tous les éléments du répertoire
+                    for item in path.glob("*"):
+                        await make_writable(item)
+            except Exception as e:
+                self.console.print(f"[yellow]Impossible de modifier les permissions de {path}: {e}[/yellow]")
+    
+        # Fonction pour supprimer un répertoire avec plusieurs tentatives
+        async def robust_rmtree(path, max_attempts=5):
+            """Supprime un répertoire de manière robuste avec plusieurs tentatives et stratégies."""
+            if not path.exists():
+                return True
+            
+            self.console.print(f"[bold yellow]Tentative de suppression robuste de {path}[/bold yellow]")
+            
+            # Stratégies de suppression à essayer dans l'ordre
+            strategies = [
+                # Stratégie 1: shutil.rmtree standard
+                lambda p: shutil.rmtree(p, ignore_errors=True),
+                
+                # Stratégie 2: Rendre accessible en écriture puis supprimer
+                lambda p: (await make_writable(p), shutil.rmtree(p, ignore_errors=True)),
+                
+                # Stratégie 3: Commande rmdir de Windows
+                lambda p: subprocess.run(f'rmdir /s /q "{str(p)}"', shell=True, check=False),
+                
+                # Stratégie 4: Renommer puis supprimer
+                lambda p: await rename_and_remove(p),
+                
+                # Stratégie 5: Supprimer fichier par fichier
+                lambda p: await remove_files_individually(p)
+            ]
+            
+            # Fonction pour renommer puis supprimer
+            async def rename_and_remove(p):
+                temp_name = f"old_{random.randint(1000, 9999)}_{int(time.time())}"
+                temp_path = p.parent / temp_name
+                os.rename(str(p), str(temp_path))
+                await asyncio.sleep(0.5)
+                shutil.rmtree(temp_path, ignore_errors=True)
+            
+            # Fonction pour supprimer fichier par fichier
+            async def remove_files_individually(p):
+                if not p.is_dir():
+                    return
+                    
+                # D'abord supprimer les fichiers
+                for item in p.glob("**/*"):
+                    if item.is_file() or item.is_symlink():
+                        with suppress(Exception):
+                            os.chmod(item, stat.S_IWRITE | stat.S_IREAD)
+                            item.unlink(missing_ok=True)
+                
+                # Puis supprimer les répertoires de bas en haut
+                dirs_to_remove = list(p.glob("**/*"))
+                dirs_to_remove = [d for d in dirs_to_remove if d.is_dir()]
+                dirs_to_remove.sort(key=lambda x: len(str(x)), reverse=True)  # Trier par profondeur
+                
+                for d in dirs_to_remove:
+                    with suppress(Exception):
+                        os.chmod(d, stat.S_IWRITE | stat.S_IREAD | stat.S_IEXEC)
+                        d.rmdir()
+                
+                # Enfin, supprimer le répertoire racine
+                with suppress(Exception):
+                    os.chmod(p, stat.S_IWRITE | stat.S_IREAD | stat.S_IEXEC)
+                    p.rmdir()
+            
+            # Essayer chaque stratégie avec plusieurs tentatives
+            for attempt in range(max_attempts):
+                for strategy_idx, strategy in enumerate(strategies):
+                    try:
+                        # Appliquer la stratégie
+                        if asyncio.iscoroutinefunction(strategy):
+                            await strategy(path)
+                        else:
+                            await asyncio.to_thread(strategy, path)
+                        
+                        # Attendre que le système de fichiers se mette à jour
+                        await asyncio.sleep(0.5 * (attempt + 1))  # Délai progressif
+                        
+                        # Vérifier si la suppression a réussi
+                        if not path.exists():
+                            self.console.print(f"[green]Suppression réussie avec stratégie {strategy_idx+1} (tentative {attempt+1})[/green]")
+                            return True
+                    except Exception as e:
+                        self.console.print(f"[yellow]Stratégie {strategy_idx+1} a échoué (tentative {attempt+1}): {e}[/yellow]")
+                
+                # Attendre avant la prochaine tentative avec un délai exponentiel
+                wait_time = 0.5 * (2 ** attempt)
+                self.console.print(f"[yellow]Attente de {wait_time:.2f}s avant nouvelle tentative...[/yellow]")
+                await asyncio.sleep(wait_time)
+            
+            # Si on arrive ici, toutes les tentatives ont échoué
+            self.console.print(f"[red]Impossible de supprimer complètement {path} après {max_attempts} tentatives[/red]")
+            return False
+    
+        # Fonction pour nettoyer les dossiers Git spécifiquement
+        async def clean_git_directories(path):
+            """Nettoie spécifiquement les dossiers Git qui peuvent causer des problèmes."""
+            if not path.exists() or not path.is_dir():
+                return
+            
+            # Rechercher tous les dossiers .git
+            git_dirs = list(path.glob("**/.git"))
+            if git_dirs:
+                self.console.print(f"[bold yellow]Nettoyage de {len(git_dirs)} dossiers Git trouvés...[/bold yellow]")
+                
+                for git_dir in git_dirs:
+                    # Supprimer d'abord les fichiers index.lock qui peuvent bloquer la suppression
+                    lock_file = git_dir / "index.lock"
+                    if lock_file.exists():
+                        try:
+                            os.chmod(lock_file, stat.S_IWRITE | stat.S_IREAD)
+                            lock_file.unlink()
+                            self.console.print(f"[yellow]Suppression du verrou Git : {lock_file}[/yellow]")
+                        except Exception as e:
+                            self.console.print(f"[red]Impossible de supprimer le verrou Git {lock_file}: {e}[/red]")
+                    
+                    # Supprimer le dossier .git
+                    try:
+                        await robust_rmtree(git_dir)
+                        self.console.print(f"[green]Suppression du dossier Git : {git_dir}[/green]")
+                    except Exception as e:
+                        self.console.print(f"[red]Erreur lors de la suppression du dossier Git {git_dir}: {e}[/red]")
+    
+        # 1. Nettoyage des fichiers et dossiers à la racine (sauf liste blanche)
+        self.console.print("\n[bold magenta]Nettoyage strict du projet (liste blanche)...[/bold magenta]")
+        
+        # Nettoyer d'abord les dossiers Git pour éviter les problèmes de verrouillage
+        for item in ROOT.iterdir():
+            if item.name in whitelist or not item.is_dir():
+                continue
+            await clean_git_directories(item)
+        
+        # Supprimer les éléments non whitelistés
+        for item in ROOT.iterdir():
+            if item.name in whitelist:
+                continue
+            
+            try:
+                if item.is_file() or item.is_symlink():
+                    os.chmod(item, stat.S_IWRITE | stat.S_IREAD)
+                    item.unlink()
+                    self.console.print(f"[yellow]Suppression fichier : {item}[/yellow]")
+                elif item.is_dir():
+                    await robust_rmtree(item)
+                    self.console.print(f"[green]Suppression dossier : {item}[/green]")
+            except Exception as e:
+                self.console.print(f"[red]Erreur suppression {item} : {e}[/red]")
+        
+        # 2. Nettoyage et recréation du dossier data
+        data_dir = ROOT / 'data'
+        if data_dir.exists():
+            self.console.print("\n[bold magenta]Nettoyage complet du dossier data...[/bold magenta]")
+            
+            # Nettoyer d'abord les dossiers Git dans data
+            await clean_git_directories(data_dir)
+            
+            # Supprimer le dossier data avec notre méthode robuste
+            await robust_rmtree(data_dir)
+        
+        # Recréer le dossier data vide
+        if not data_dir.exists():
+            data_dir.mkdir(parents=True, exist_ok=True)
+            self.console.print("[green]✓ Dossier data recréé avec succès.[/green]")
+        
+        # Créer les sous-dossiers standard de data
+        for subdir in ['raw', 'normalized', 'output']:
+            subdir_path = data_dir / subdir
+            if not subdir_path.exists():
+                subdir_path.mkdir(parents=True, exist_ok=True)
+                self.console.print(f"[green]✓ Sous-dossier {subdir} créé.[/green]")
+        
+        self.console.print("[bold green]✓ Nettoyage strict terminé. Seuls les fichiers essentiels sont conservés.[/bold green]")
+
+    # Ancienne méthode conservée pour référence ou fallback
+    async def run_clear_all(self):
+        """
+        Vide tous les répertoires critiques du projet : raw, normalized, deduped, output, splits, final (ancienne version, conservée pour fallback).
+{{ ... }}
+        """
+        self.console.print("\n[bold magenta]Nettoyage complet du projet : suppression de tous les fichiers et caches...[/bold magenta]")
+        await self.run_clear_split_deduped()
+        await self.run_clear_raw()
+        await self.run_clear_normalized()
+        await self.run_clear_temp()
+        self.console.print("[green]✓ Projet remis à zéro. Tous les répertoires critiques sont vides.[/green]")
+    
+    async def run_split_raw(self):
+        """
+        Scinde les fichiers bruts (.txt, .csv, .tsv) en fichiers txt de 5M lignes max.
+        """
+        self.console.print("\n[bold blue]Scission des fichiers bruts en chunks de 5M lignes...[/bold blue]")
+        split_raw_files(
+            input_dir=self.raw_dir,
+            output_dir=self.output_dir / "splits",
+            max_lines=5_000_000,
+            console=self.console
+        )
+    
+    async def run_split_deduped(self):
+        """
+        Scinde le fichier des données dédupliquées en plusieurs fichiers par taille.
+        """
+        # Si pas de fichier dédupliqué, tenter une déduplication automatique si des chunks bruts existent
+        if not self.deduped_path or not self.deduped_path.exists():
+            split_dir = self.output_dir / "splits"
+            if split_dir.exists() and any(split_dir.glob("*.txt")):
+                self.console.print("[yellow]Aucun fichier dédupliqué trouvé, lancement de la déduplication automatique...[/yellow]")
+                final_path = await asyncio.to_thread(
+                    deduplicate_chunks,
+                    split_dir,
+                    self.deduped_dir / "deduped_chunks.txt",
+                    self.console
+                )
+                self.deduped_path = final_path
+                count = sum(1 for _ in open(final_path, "r", encoding="utf-8"))
+                self.stats['entries_deduped'] = count
+                self.console.print(f"[green]Entrées uniques après chunks : {count}[/green]")
+            else:
+                self.console.print("[yellow]Aucun fichier dédupliqué trouvé. Exécutez d'abord l'option 5 pour dédupliquer ou l'option 4 pour créer des chunks bruts.[/yellow]")
+                return
+        n = await self._get_input("Nombre de lignes par fichier de split ?: ")
+        try:
+            max_lines = int(n)
+            if max_lines <= 0:
+                raise ValueError
+        except ValueError:
+            self.console.print("[red]Nombre invalide. Veuillez entrer un entier positif.[/red]")
+            return
+        final_dir = self.output_dir / "final"
+        self.console.print(f"\n[bold blue]Création des splits dans {final_dir} (max {max_lines} lignes)...[/bold blue]")
+        shutil.rmtree(final_dir, ignore_errors=True)
+        final_dir.mkdir(parents=True, exist_ok=True)
+        # Calcul du total de lignes pour la barre de progression
+        total_lines = self.stats.get("entries_deduped") or sum(1 for _ in open(self.deduped_path, "r", encoding="utf-8"))
+        # Barre de progression pendant le split des données dédupliquées
+        with Progress(
+            SpinnerColumn(),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=self.console
+        ) as progress:
+            task_id = progress.add_task("Split des données dédupliquées", total=total_lines)
+            file_index = 1
+            line_count = 0
+            infile = open(self.deduped_path, "r", encoding="utf-8")
+            outfile = open(final_dir / f"split_{file_index:03d}.txt", "w", encoding="utf-8")
+            for line in infile:
+                text = line.rstrip("\n")
+                if line_count == max_lines - 1:
+                    outfile.write(f"{text}\n")
+                    outfile.close()
+                    file_index += 1
+                    outfile = open(final_dir / f"split_{file_index:03d}.txt", "w", encoding="utf-8")
+                    line_count = 0
+                else:
+                    outfile.write(f"{text},\n")
+                    line_count += 1
+                progress.update(task_id, advance=1)
+            infile.close()
+            outfile.close()
+        # Finalisation du dernier fichier : suppression de la virgule finale
+        last_idx = file_index if line_count > 0 else file_index - 1
+        if last_idx >= 1:
+            last_file = final_dir / f"split_{last_idx:03d}.txt"
+            lines = last_file.read_text(encoding="utf-8").splitlines()
+            if lines and lines[-1].endswith(","):
+                lines[-1] = lines[-1].rstrip(",")
+            last_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        self.console.print(f"[green]✓ Split des données dédupliquées terminé: {last_idx} fichiers créés.[/green]")
+    
+    async def run_clear_split_deduped(self):
+        """
+        Supprime les fichiers txt générés par le split des données dédupliquées.
+        """
+        dir_to_clear = self.output_dir / "final"
+        self.console.print("\n[bold blue]Suppression des splits dédupliqués avec progression...[/bold blue]")
+        if not dir_to_clear.exists():
+            self.console.print(f"[yellow]{dir_to_clear} n'existe pas.[/yellow]")
+            return
+        # Collecter les éléments à supprimer
+        items = list(dir_to_clear.glob('*'))
+        total = len(items)
+        # Barre de progression Rich
+        with Progress(
+            SpinnerColumn(),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=self.console
+        ) as progress:
+            task = progress.add_task("Suppression splits dédupliqués", total=total)
+            for item in items:
+                try:
+                    if item.is_file():
+                        item.unlink(missing_ok=True)
+                    else:
+                        shutil.rmtree(item, ignore_errors=True)
+                except Exception:
+                    pass
+                progress.update(task, advance=1)
+        # Supprimer le dossier final s'il est vide
+        try:
+            dir_to_clear.rmdir()
+        except Exception:
+            pass
+        self.console.print(f"[green]✓ Suppression des splits terminée ({total} éléments supprimés).[/green]")
+    
+    async def run_clear_raw(self):
+        """
+        Vide le dossier des données brutes (raw).
+        Cette fonction supprime tous les fichiers et sous-répertoires du dossier raw
+        pour permettre un nouveau téléchargement complet des sources.
+        
+        La suppression est forcée pour les fichiers verrouillés, notamment les fichiers Git.
+        En cas d'erreur sur un fichier ou dossier spécifique, la fonction continue
+        avec les autres éléments et tente plusieurs approches de suppression.
+        """
+        self.console.print("\n[bold blue]Suppression du dossier raw avec progression...[/bold blue]")
+        if not hasattr(self, 'raw_dir') or not self.raw_dir.exists():
+            self.console.print("[yellow]Le dossier raw n'existe pas ou n'est pas configuré.[/yellow]")
+            return
+        # Récupérer tous les fichiers et répertoires à supprimer
+        items = list(self.raw_dir.glob('*'))
+        total = len(items)
+        # Barre de progression Rich
+        with Progress(
+            SpinnerColumn(),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=self.console
+        ) as progress:
+            task = progress.add_task("Suppression raw", total=total)
+            for item in items:
+                try:
+                    if item.is_file():
+                        item.chmod(0o600)
+                        item.unlink(missing_ok=True)
+                    else:
+                        shutil.rmtree(item, ignore_errors=True)
+                except Exception:
+                    pass
+                progress.update(task, advance=1)
+        # Recréer le dossier raw s'il a été supprimé
+        if not self.raw_dir.exists():
+            self.raw_dir.mkdir(parents=True, exist_ok=True)
+        # Réinitialiser les statistiques et chemins
+        self.stats['sources_downloaded'] = 0
+        self.stats['entries_raw'] = 0
+        self.source_paths = {}
+        self.console.print("[green]✓ Dossier raw vidé avec succès ![/green]")
+    
+    async def run_clear_normalized(self):
+        """
+        Vide le cache des données normalisées.
+        """
+        self.console.print("\n[bold blue]Suppression du cache normalisé avec progression...[/bold blue]")
+        dir_norm = self.normalized_dir
+        if not dir_norm.exists():
+            self.console.print("[yellow]Le dossier normalized n'existe pas ou n'est pas configuré.[/yellow]")
+            return
+        # Récupérer les fichiers et répertoires à supprimer
+        items = list(dir_norm.glob('*'))
+        total = len(items)
+        # Barre de progression Rich
+        with Progress(
+            SpinnerColumn(),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=self.console
+        ) as progress:
+            task = progress.add_task("Suppression normalized", total=total)
+            for item in items:
+                try:
+                    if item.is_file():
+                        item.unlink(missing_ok=True)
+                    else:
+                        shutil.rmtree(item, ignore_errors=True)
+                except Exception:
+                    pass
+                progress.update(task, advance=1)
+        # Recréer le dossier normalized
+        dir_norm.mkdir(parents=True, exist_ok=True)
+        # Réinitialiser les chemins et statistiques
+        self.normalized_paths = {}
+        self.stats['entries_normalized'] = 0
+        self.console.print("[green]✓ Cache normalisé vidé avec succès ![/green]")
+    
+    async def run_clear_temp(self):
+        """
+        Supprime les chunks, le cache dédupliqué et l'output final.
+        """
+        self.console.print("\n[bold blue]Suppression temporaire (splits, deduped, output) avec progression...[/bold blue]")
+        targets = [self.output_dir / "splits", self.deduped_dir, self.output_dir]
+        # Collecter tous les fichiers et dossiers à supprimer
+        all_items = []
+        for d in targets:
+            if d.exists():
+                for item in d.glob('*'):
+                    all_items.append(item)
+        total = len(all_items)
+        # Barre de progression Rich
+        with Progress(
+            SpinnerColumn(),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=self.console
+        ) as progress:
+            task = progress.add_task("Suppression temporaire", total=total)
+            for item in all_items:
+                try:
+                    if item.is_file():
+                        item.unlink(missing_ok=True)
+                    else:
+                        shutil.rmtree(item, ignore_errors=True)
+                except Exception:
+                    pass
+                progress.update(task, advance=1)
+        # Recréer les dossiers nécessaires
+        for d in targets:
+            if d != self.output_dir:
+                d.mkdir(parents=True, exist_ok=True)
+        self.console.print("[green]✓ Suppression temporaire terminée avec succès ![/green]")
+
+
+async def run_orchestrator(config_path: str = "config.yaml"):
+    """
+    Fonction principale pour exécuter l'orchestrateur.
+    
+    Args:
+        config_path: Chemin vers le fichier de configuration
+    """
+    orchestrator = Orchestrator(config_path)
+    try:
+        await orchestrator.run_interactive()
+    except KeyboardInterrupt:
+        orchestrator.console.print("\n[bold yellow]Programme interrompu par l'utilisateur (CTRL+C). Arrêt propre...[/bold yellow]")
+
+
+def main():
+    """Point d'entrée pour l'orchestrateur."""
+    typer.run(asyncio.run(run_orchestrator))
+
