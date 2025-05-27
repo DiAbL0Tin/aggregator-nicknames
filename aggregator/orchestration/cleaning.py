@@ -167,8 +167,15 @@ class CleaningMixin:
             if not path.exists() or not path.is_dir():
                 return
             
-            # Rechercher tous les dossiers .git
-            git_dirs = list(path.glob("**/.git"))
+            # Rechercher tous les dossiers .git, mais exclure le dossier .git principal s'il est dans la whitelist
+            git_dirs = []
+            for git_dir in path.glob("**/.git"):
+                # Vérifier si c'est le dossier .git principal (à la racine)
+                if git_dir.parent == ROOT and '.git' in whitelist:
+                    self.console.print(f"[bold blue]Protection du dossier Git principal (.git est dans la whitelist)[/bold blue]")
+                    continue
+                git_dirs.append(git_dir)
+                
             if git_dirs:
                 self.console.print(f"[bold yellow]Nettoyage de {len(git_dirs)} dossiers Git trouvés...[/bold yellow]")
                 
@@ -183,7 +190,7 @@ class CleaningMixin:
                         except Exception as e:
                             self.console.print(f"[red]Impossible de supprimer le verrou Git {lock_file}: {e}[/red]")
                     
-                    # Supprimer le dossier .git
+                    # Supprimer le dossier .git (sauf celui à la racine qui est protégé)
                     try:
                         await robust_rmtree(git_dir)
                         self.console.print(f"[green]Suppression du dossier Git : {git_dir}[/green]")
@@ -220,11 +227,27 @@ class CleaningMixin:
         if data_dir.exists():
             self.console.print("\n[bold magenta]Nettoyage complet du dossier data...[/bold magenta]")
             
-            # Nettoyer d'abord les dossiers Git dans data
-            await clean_git_directories(data_dir)
-            
-            # Supprimer le dossier data avec notre méthode robuste
-            await robust_rmtree(data_dir)
+            # Nous n'avons pas besoin de nettoyer les dossiers Git dans data car nous allons supprimer tout le dossier
+            # Vérifions juste qu'il n'y a pas un lien symbolique vers le .git principal pour éviter de le supprimer
+            root_git_dir = ROOT / '.git'
+            if root_git_dir.exists() and '.git' in whitelist:
+                for git_dir in data_dir.glob("**/.git"):
+                    if git_dir.resolve() == root_git_dir.resolve():
+                        self.console.print(f"[bold red]Attention! Détection d'un lien vers le .git principal dans {git_dir}, protection activée[/bold red]")
+                        # Ne pas supprimer data_dir directement, mais plutôt son contenu item par item
+                        for item in data_dir.iterdir():
+                            if item.name != '.git':
+                                if item.is_file() or item.is_symlink():
+                                    item.unlink()
+                                elif item.is_dir():
+                                    await robust_rmtree(item)
+                        break
+                else:  # Ce else appartient au for, il s'exécute si aucun break n'est rencontré
+                    # Supprimer le dossier data avec notre méthode robuste
+                    await robust_rmtree(data_dir)
+            else:
+                # Supprimer le dossier data avec notre méthode robuste
+                await robust_rmtree(data_dir)
         
         # Recréer le dossier data vide
         if not data_dir.exists():
