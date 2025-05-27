@@ -1,7 +1,7 @@
 # README.md - aggregator Nickname
 
 ![Licence](https://img.shields.io/badge/licence-MIT-blue)
-![Tests](https://img.shields.io/github/workflow/status/DiAbL0Tin/aggregator-nicknames/CI)
+![Tests](https://img.shields.io/github/actions/workflow/status/DiAbL0Tin/aggregator-nicknames/ci.yml?branch=main)
 ![Version Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
 Un outil Python pour agréger, normaliser et dédupliquer plus de 220 millions de pseudos, prénoms et noms à partir de plus de 30 dépôts et datasets.
