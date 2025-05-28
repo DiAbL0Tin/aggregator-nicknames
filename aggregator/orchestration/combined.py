@@ -11,11 +11,11 @@ from .utils import UtilsMixin
 
 
 class CombinedOrchestrator(
-    OrchestratorBase,
     CleaningMixin,
     SplittingMixin,
     InteractiveMixin,
-    UtilsMixin
+    UtilsMixin,
+    OrchestratorBase  # Placer la classe de base en dernier pour éviter des problèmes d'ordre de résolution
 ):
     """
     Classe combinée de l'orchestrateur qui intègre toutes les fonctionnalités.

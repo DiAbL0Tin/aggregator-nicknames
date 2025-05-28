@@ -5,7 +5,8 @@ Contient toutes les fonctions liées à la division des fichiers bruts et dédup
 
 import asyncio
 from pathlib import Path
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
+from typing import Optional, Dict, List
+from rich.console import Console
 
 from ..split_raw import split_raw_files
 # Correction : le module de déduplication s'appelle 'dedupe.py' (et non 'deduplication.py').
@@ -15,6 +16,14 @@ from ..dedupe import deduplicate_chunks
 
 class SplittingMixin:
     """Mixin pour les fonctionnalités de division des fichiers de l'orchestrateur."""
+    
+    # Définir les attributs hérités de OrchestratorBase avec leurs types
+    normalized_dir: Path
+    output_dir: Path
+    deduped_dir: Path
+    deduped_path: Optional[Path] = None
+    console: Console
+    stats: Dict[str, int]
 
     async def run_split_normalized(self):
         """
@@ -89,7 +98,7 @@ class SplittingMixin:
         
         # Lire le fichier dédupliqué et le diviser en morceaux selon la taille choisie
         with open(self.deduped_path, "r", encoding="utf-8") as f:
-            lines = []
+            lines: List[str] = []
             last_idx = 0
             total_lines = sum(1 for _ in open(self.deduped_path, "r", encoding="utf-8"))
             
@@ -109,7 +118,9 @@ class SplittingMixin:
                     if (i + 1) == total_lines and lines:
                         lines[-1] = lines[-1].rstrip(',')
                     
-                    last_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                    # Utiliser open() au lieu de write_text() pour avoir plus de contrôle sur les erreurs d'encodage
+                    with open(last_file, "w", encoding="utf-8", errors="replace") as f:
+                        f.write("\n".join(lines) + "\n")
                     self.console.print(f"[green]Fichier {last_file.name} créé avec {len(lines):,} lignes.[/green]")
                     lines = []
             
@@ -119,10 +130,12 @@ class SplittingMixin:
                 last_file = final_dir / f"chunk_{last_idx:03d}.txt"
                 
                 # S'assurer que le dernier terme du dernier fichier n'a pas de virgule
-                if lines:
+                if lines:  # cette vérification est redondante mais préserve la logique d'origine
                     lines[-1] = lines[-1].rstrip(',')
                 
-                last_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                # Utiliser open() au lieu de write_text() pour avoir plus de contrôle sur les erreurs d'encodage
+                with open(str(last_file), "w", encoding="utf-8", errors="replace") as f:
+                    f.write("\n".join(lines) + "\n")
                 self.console.print(f"[green]Fichier {last_file.name} créé avec {len(lines):,} lignes.[/green]")
         
         self.console.print(f"[green]✓ Split des données dédupliquées terminé: {last_idx} fichiers créés.[/green]")
