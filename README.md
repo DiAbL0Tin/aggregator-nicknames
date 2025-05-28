@@ -1,4 +1,4 @@
-﻿# README.md - aggregator Nickname
+# README.md - aggregator Nickname
 
 ![License](https://img.shields.io/badge/licence-MIT-blue)
 ![Tests](https://img.shields.io/github/actions/workflow/status/DiAbL0Tin/aggregator-nicknames/ci.yml?branch=main)
@@ -678,8 +678,11 @@ Le tout avec des statistiques en temps réel et des conseils éducatifs.
 ## Statistiques en temps réel
 
 L'orchestrateur interactif fournit des statistiques en temps réel :
-- Nombre de sources téléchargées et normalisées
-- Nombre d'entrées brutes, normalisées et dédupliquées
+- Nombre de sources téléchargées et normalisées: **23 sources téléchargées**
+- Nombre d'entrées brutes, normalisées et dédupliquées:
+  - **3 423 039** entrées brutes
+  - **296 998 063** entrées normalisées
+  - **74 724 478** entrées dédupliquées
 - Taux de déduplication
 - Temps d'exécution pour chaque étape
 - Progression visuelle avec barres de progression
