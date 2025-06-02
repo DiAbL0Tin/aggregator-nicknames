@@ -6,8 +6,11 @@ Contient la classe principale OrchestratorBase qui initialise les chemins et la 
 import os
 from pathlib import Path
 from rich.console import Console
+from typing import Dict, Any, List
 
-from ..config import load_config
+# Imports absolus pour éviter les problèmes de résolution
+from aggregator.config import load_config
+from aggregator.logger import setup_logger
 
 
 class OrchestratorBase:
@@ -22,6 +25,9 @@ class OrchestratorBase:
         """
         self.config_path = config_path
         self.console = Console()
+        
+        # Initialiser le log d'erreurs
+        self.errors_log: List[Dict[str, Any]] = []
         
         # Vérifier si le fichier de configuration existe
         if not os.path.exists(config_path):
@@ -54,7 +60,14 @@ class OrchestratorBase:
                 # Créer les répertoires s'ils n'existent pas
                 for d in [self.raw_dir, self.normalized_dir, self.deduped_dir, self.output_dir]:
                     d.mkdir(parents=True, exist_ok=True)
+                
+                # Configurer le logger avec le répertoire de sortie
+                self.logger = setup_logger(self.output_dir)
+                self.logger.info(f"Orchestrateur initialisé avec la configuration {config_path}")
                     
             except Exception as e:
                 self.config = None
                 self.console.print(f"[bold red]Erreur lors du chargement de la configuration: {e}[/bold red]")
+                # Configurer le logger sans répertoire de sortie en cas d'erreur
+                self.logger = setup_logger(None)
+                self.logger.error(f"Erreur lors du chargement de la configuration: {e}")

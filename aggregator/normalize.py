@@ -50,7 +50,14 @@ class Normalizer:
             # Début du traitement d'une source
             self.console.print(f"[blue]Traitement de {slug}...[/blue]")
             try:
-                normalized_path = self.normalize_source(slug, path)
+                # Trouver la configuration de la source pour déterminer si c'est un email
+                is_email = False
+                for source in self.config.sources:
+                    if source.slug == slug and hasattr(source, 'is_email') and source.is_email:
+                        is_email = True
+                        break
+                
+                normalized_path = self.normalize_source(slug, path, is_email)
                 normalized_paths[slug] = normalized_path
                 # Succès pour ce slug
                 self.console.print(f"[green]✓ {slug} normalisée avec succès[/green]")
@@ -64,17 +71,31 @@ class Normalizer:
             self.console.print(f"[yellow]Attention: ces sources n'ont pas été normalisées: {sorted(missing)}[/yellow]")
         return normalized_paths
     
-    def normalize_source(self, slug: str, source_path: Path) -> Path:
+    def normalize_source(self, slug: str, source_path: Path, is_email: bool = False) -> Path:
         """
         Normalise une source spécifique en fonction de son type.
         
         Args:
             slug: Identifiant de la source
             source_path: Chemin vers les données téléchargées
+            is_email: Indique si la source contient des emails pour un traitement spécial
             
         Returns:
             Path: Chemin vers les données normalisées
         """
+        # Déterminer le répertoire de destination
+        if is_email:
+            # Pour les sources d'emails, utiliser un répertoire spécifique
+            dest_dir = Path(self.config.defaults.cache_dir).parent / "emails"
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            output_path = dest_dir / f"{slug}.parquet"
+        else:
+            # Pour les sources normales, utiliser le répertoire habituel
+            output_path = self.cache_dir / f"normalized_{slug}_{source_path.name}"
+            if output_path.exists() and output_path.is_dir():
+                shutil.rmtree(output_path)
+            elif output_path.exists():
+                output_path.unlink()
         # Cas particulier pour awesome_wordlists: parse README.md pour extraire les listes
         if slug == "awesome_wordlists":
             readme = source_path / "README.md"
@@ -216,7 +237,7 @@ class Normalizer:
             df = self._read_file(file_path)
             if df is not None:
                 # Normaliser le DataFrame
-                df = self._normalize_dataframe(df)
+                df = self._normalize_dataframe(df, is_email=is_email)
                 dfs.append(df)
         
         # Concaténer tous les DataFrames
@@ -333,53 +354,105 @@ class Normalizer:
         df = df.rename({self._identify_name_column(df): "nick"})
 
 
-    def _normalize_dataframe(self, df: pl.DataFrame) -> pl.DataFrame:
+    def _normalize_dataframe(self, df: pl.DataFrame, is_email: bool = False) -> pl.DataFrame:
         """
         Normalise un DataFrame selon les règles définies.
-        - Renomme la colonne cible en 'nick'
-        - Applique la normalisation sur chaque pseudo (voir normalize_nick)
-        - Filtre les pseudos vides et déduplique
+        - Renomme la colonne cible en 'nick' ou 'email'
+        - Applique la normalisation sur chaque pseudo/email
+        - Filtre les valeurs vides et déduplique
+        - Si is_email=True, génère deux versions: l'email complet et la partie locale (nickname)
         """
-        # Renommer la colonne cible en 'nick'
-        df = df.rename({self._identify_name_column(df): "nick"})
+        # Renommer la colonne cible
+        column_name = "email" if is_email else "nick"
+        df = df.rename({self._identify_name_column(df): column_name})
 
-        # Sélectionner uniquement la colonne 'nick'
-        df = df.select("nick")
-
-        # Fonction interne de normalisation d'un pseudo
-        def normalize_nick(value):
-            """
-            Normalise un pseudo :
-            - Met en minuscules
-            - Supprime les accents (unidecode)
-            - Retire les caractères non autorisés (seuls a-z, 0-9, '_', '-', '.', ' ' sont conservés)
-            - Supprime les espaces en trop
-            """
-            if value is None:
-                return ""
-            if not isinstance(value, str):
-                try:
-                    value = str(value)
-                except:
+        # Sélectionner uniquement la colonne principale
+        df = df.select(column_name)
+        
+        if is_email:
+            # Traitement spécial pour les emails
+            # Garder une copie des emails complets tout en extrayant la partie locale pour les nicks
+            values = df[column_name].to_list()
+            # Filtrer les valeurs vides et non-texte
+            valid_emails = []
+            local_parts = []
+            domains = []
+            
+            for v in values:
+                if v is None:
+                    continue
+                    
+                if not isinstance(v, str):
+                    try:
+                        v = str(v)
+                    except:
+                        continue
+                        
+                v = v.strip().lower()
+                
+                # Vérifier si c'est bien un email (contient @)
+                if "@" not in v:
+                    continue
+                    
+                # Séparer la partie locale et le domaine
+                parts = v.split("@", 1)
+                if len(parts) != 2 or not parts[0] or not parts[1]:
+                    continue
+                    
+                local_part, domain = parts
+                
+                # Normaliser la partie locale comme un pseudo
+                local_part = unidecode(local_part)
+                local_part = re.sub(r"[^a-z0-9_.\- ]", "", local_part)
+                
+                # Ne garder que les emails avec une partie locale valide
+                if local_part:
+                    valid_emails.append(v)
+                    local_parts.append(local_part)
+                    domains.append(domain)
+            
+            # Créer un DataFrame avec les emails complets et leur partie locale
+            return pl.DataFrame({
+                "email": list(dict.fromkeys(valid_emails)),
+                "local_part": list(dict.fromkeys(local_parts)),
+                "domain": list(dict.fromkeys(domains))
+            })
+        else:
+            # Traitement standard pour les pseudos
+            def normalize_nick(value):
+                """
+                Normalise un pseudo :
+                - Met en minuscules
+                - Supprime les accents (unidecode)
+                - Retire les caractères non autorisés (seuls a-z, 0-9, '_', '-', '.', ' ' sont conservés)
+                - Supprime les espaces en trop
+                """
+                if value is None:
                     return ""
-            # Mise en minuscules et suppression des accents
-            value = unidecode(value.strip().lower())
-            # Filtrage des caractères autorisés uniquement
-            value = re.sub(r"[^a-z0-9_.\- ]", "", value)
-            # Suppression des espaces multiples
-            value = re.sub(r"\s+", " ", value).strip()
-            return value
+                if not isinstance(value, str):
+                    try:
+                        value = str(value)
+                    except:
+                        return ""
+                        
+                # Mise en minuscules et suppression des accents
+                value = unidecode(value.strip().lower())
+                # Filtrage des caractères autorisés uniquement
+                value = re.sub(r"[^a-z0-9_.\- ]", "", value)
+                # Suppression des espaces multiples
+                value = re.sub(r"\s+", " ", value).strip()
+                return value
 
-        # Appliquer la normalisation et collecter les résultats
-        values = df["nick"].to_list()
-        normalized = [normalize_nick(v) for v in values]
+            # Appliquer la normalisation et collecter les résultats
+            values = df[column_name].to_list()
+            normalized = [normalize_nick(v) for v in values]
 
-        # Supprimer le filtre strict : ne conserver que les pseudos non vides
-        filtered = [v for v in normalized if v]
-        unique_nicks = list(dict.fromkeys(filtered))
+            # Supprimer le filtre strict : ne conserver que les pseudos non vides
+            filtered = [v for v in normalized if v]
+            unique_nicks = list(dict.fromkeys(filtered))
 
-        # Construire et retourner le DataFrame final
-        return pl.DataFrame({"nick": unique_nicks})
+            # Construire et retourner le DataFrame final
+            return pl.DataFrame({"nick": unique_nicks})
 
     def _identify_name_column(self, df: pl.DataFrame) -> str:
         """

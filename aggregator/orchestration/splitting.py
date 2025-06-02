@@ -43,10 +43,13 @@ class SplittingMixin:
             console=self.console
         )
     
-    async def run_split_deduped(self):
+    async def run_split_deduped(self, auto_mode: bool = False):
         """
         Scinde le fichier des données dédupliquées en plusieurs fichiers par taille.
-        Demande à l'utilisateur le nombre de lignes souhaité par fichier, avec 1 000 000 comme valeur par défaut.
+        
+        Args:
+            auto_mode: Si True, utilise automatiquement 1 000 000 lignes sans demander à l'utilisateur.
+                      Si False, demande à l'utilisateur le nombre de lignes souhaité par fichier.
         """
         # Si pas de fichier dédupliqué, tenter une déduplication automatique si des chunks bruts existent
         if not self.deduped_path or not self.deduped_path.exists():
@@ -69,28 +72,34 @@ class SplittingMixin:
         
         self.console.print("\n[bold blue]Division du fichier dédupliqué en fichiers plus petits...[/bold blue]")
         
-        # Demander à l'utilisateur le nombre de lignes par fichier
+        # Définir le nombre de lignes par fichier
         default_chunk_size = 1_000_000
-        self.console.print(f"\n[bold]Par défaut, chaque fichier contiendra {default_chunk_size:,} lignes.[/bold]")
-        # Utiliser le système de traductions pour l'invite utilisateur
-        from .translations import get_translation
-        lang = getattr(self, 'lang', 'fr')  # Récupérer la langue ou utiliser fr par défaut
-        user_input = input(get_translation("modify_lines_per_file", lang))
-        
-        # Traiter l'entrée de l'utilisateur
         chunk_size = default_chunk_size
-        if user_input.strip():
-            try:
-                user_chunk_size = int(user_input.strip().replace(',', '').replace('_', ''))
-                if user_chunk_size > 0:
-                    chunk_size = user_chunk_size
-                    self.console.print(f"[green]Utilisation de {chunk_size:,} lignes par fichier.[/green]")
-                else:
-                    self.console.print(f"[yellow]Valeur incorrecte. Utilisation de la valeur par défaut : {default_chunk_size:,} lignes par fichier.[/yellow]")
-            except ValueError:
-                self.console.print(f"[yellow]Entrée non valide. Utilisation de la valeur par défaut : {default_chunk_size:,} lignes par fichier.[/yellow]")
+        
+        # En mode automatique, utiliser directement la valeur par défaut
+        if auto_mode:
+            self.console.print(f"[green]Mode automatique : utilisation de {chunk_size:,} lignes par fichier.[/green]")
         else:
-            self.console.print(f"[green]Utilisation de la valeur par défaut : {chunk_size:,} lignes par fichier.[/green]")
+            # Demander à l'utilisateur le nombre de lignes par fichier
+            self.console.print(f"\n[bold]Par défaut, chaque fichier contiendra {default_chunk_size:,} lignes.[/bold]")
+            # Utiliser le système de traductions pour l'invite utilisateur
+            from .translations import get_translation
+            lang = getattr(self, 'lang', 'fr')  # Récupérer la langue ou utiliser fr par défaut
+            user_input = input(get_translation("modify_lines_per_file", lang))
+            
+            # Traiter l'entrée de l'utilisateur
+            if user_input.strip():
+                try:
+                    user_chunk_size = int(user_input.strip().replace(',', '').replace('_', ''))
+                    if user_chunk_size > 0:
+                        chunk_size = user_chunk_size
+                        self.console.print(f"[green]Utilisation de {chunk_size:,} lignes par fichier.[/green]")
+                    else:
+                        self.console.print(f"[yellow]Valeur incorrecte. Utilisation de la valeur par défaut : {default_chunk_size:,} lignes par fichier.[/yellow]")
+                except ValueError:
+                    self.console.print(f"[yellow]Entrée non valide. Utilisation de la valeur par défaut : {default_chunk_size:,} lignes par fichier.[/yellow]")
+            else:
+                self.console.print(f"[green]Utilisation de la valeur par défaut : {chunk_size:,} lignes par fichier.[/green]")
         
         # Créer le répertoire de sortie s'il n'existe pas
         final_dir = self.output_dir / "final"

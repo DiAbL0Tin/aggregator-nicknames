@@ -13,8 +13,8 @@ from .utils import UtilsMixin
 class CombinedOrchestrator(
     CleaningMixin,
     SplittingMixin,
+    UtilsMixin,        # UtilsMixin déplacé avant InteractiveMixin pour corriger le MRO
     InteractiveMixin,
-    UtilsMixin,
     OrchestratorBase  # Placer la classe de base en dernier pour éviter des problèmes d'ordre de résolution
 ):
     """

@@ -93,6 +93,32 @@ sources:
     type: http
     url: https://raw.githubusercontent.com/jeanphorn/wordlist/master/usernames.txt
     ref: turn2search3
+  - slug: enron_emails
+    type: http
+    url: http://www.cs.cmu.edu/~enron/enron_mail_20110402.tgz
+    ref: emails_source1
+    is_email: true
+  - slug: email_data
+    type: git
+    repo: fnando/email_data
+    ref: emails_source2
+    is_email: true
+  - slug: spectromail_dataset
+    type: http
+    url: https://huggingface.co/datasets/MawLab/SpectraMail_Data_Set/resolve/main/spectromail_10k.jsonl
+    ref: emails_source3
+    is_email: true
+  - slug: fraudulent_emails
+    type: http
+    url: https://github.com/MawLab/fraudulent-email-corpus/raw/main/fraud_emails.csv
+    ref: emails_source4
+    is_email: true
+  - slug: breached_emails
+    type: git
+    repo: doormanBreach/FreeDatabreaches
+    path: breaches
+    ref: emails_source5
+    is_email: true
 
 defaults:
   cache_dir: data/raw

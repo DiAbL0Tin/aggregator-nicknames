@@ -18,6 +18,8 @@ class Source(BaseModel):
     dataset: Optional[str] = Field(None, description="Dataset Kaggle (pour type=kaggle)")
     access: Optional[str] = Field(None, description="Méthode d'accès spécifique")
     url: Optional[HttpUrl] = Field(None, description="URL pour téléchargement direct")
+    is_email: Optional[bool] = Field(False, description="Indique si la source contient des emails")
+    path: Optional[str] = Field(None, description="Chemin spécifique dans le dépôt")
 
 
 class Defaults(BaseModel):
