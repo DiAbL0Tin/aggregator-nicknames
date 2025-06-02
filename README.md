@@ -4,7 +4,7 @@
 ![Tests](https://img.shields.io/github/actions/workflow/status/DiAbL0Tin/aggregator-nicknames/ci.yml?branch=main)
 ![Python Version](https://img.shields.io/badge/python-3.11%2B-blue)
 
-A Python tool for aggregating, normalizing, and deduplicating over 220 million usernames, first names, and last names from more than 30 repositories and datasets.
+A Python tool for aggregating, normalizing, and deduplicating over 297 million usernames, emails, passwords, first names, and last names from more than 30 repositories and datasets.
 
 ## Modular Architecture of the Orchestrator
 
@@ -391,7 +391,7 @@ _______________________________________________________________________________
 ![Tests](https://img.shields.io/github/actions/workflow/status/DiAbL0Tin/aggregator-nicknames/ci.yml?branch=main)
 ![Version Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
-Un outil Python pour agréger, normaliser et dédupliquer plus de 220 millions de pseudos, prénoms et noms à partir de plus de 30 dépôts et datasets.
+Un outil Python pour agréger, normaliser et dédupliquer plus de 297 millions de pseudos, emails, mots de passe, prénoms et noms à partir de plus de 30 dépôts et datasets.
 
 ## Architecture modulaire de l'orchestrateur
 
@@ -428,8 +428,8 @@ classDiagram
 - **Gestion avancée des erreurs** : Logging asynchrone basé sur Loguru, stockage en mémoire et affichage Rich
 - Normalisation des données (minuscules, suppression des accents, suppression stricte des caractères spéciaux : seuls les caractères `[a-z0-9_.- ]` sont conservés, suppression des chaînes vides)
 - Déduplication haute performance avec préservation de l'ordre de priorité
-- Export en streaming par blocs d'un million de lignes
-- Support des grands volumes de données (>220M entrées)
+- Export streaming par blocs d'1 million de lignes
+- Support pour les grands volumes de données (>297M entrées)
 - **Menu interactif refondu** : Options automatiques et manuelles séparées pour une meilleure expérience utilisateur
 - **Exports spécialisés** : Export des pseudonymes, emails et mots de passe séparément ou combinés
 - **Rapport d'erreurs** : Tableaux d'erreurs détaillés montrant la phase, le type, le message et l'horodatage
@@ -701,7 +701,7 @@ Le pipeline enchaîne automatiquement les étapes suivantes :
 - **1.** Nettoyage strict
 - **2.** Téléchargement des sources
 - **3.** Normalisation
-- **4.** Création de chunks à partir des données normalisées
+- **4.** Création de chunks depuis les données normalisées
 - **5.** Déduplication
 - **6.** Division des données dédupliquées
 
@@ -746,7 +746,7 @@ Le tout avec des statistiques en temps réel et des conseils éducatifs.
 ## Statistiques en temps réel
 
 L'orchestrateur interactif fournit des statistiques en temps réel :
-- Nombre de sources téléchargées et normalisées: **25 sources téléchargées**
+- Nombre de sources téléchargées et normalisées: **34 sources téléchargées**
 - Nombre d'entrées brutes, normalisées et dédupliquées:
   - **3 423 696** entrées brutes
   - **297 382 422** entrées normalisées
