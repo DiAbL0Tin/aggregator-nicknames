@@ -678,11 +678,11 @@ Le tout avec des statistiques en temps réel et des conseils éducatifs.
 ## Statistiques en temps réel
 
 L'orchestrateur interactif fournit des statistiques en temps réel :
-- Nombre de sources téléchargées et normalisées: **23 sources téléchargées**
+- Nombre de sources téléchargées et normalisées: **25 sources téléchargées**
 - Nombre d'entrées brutes, normalisées et dédupliquées:
-  - **3 423 039** entrées brutes
-  - **296 998 063** entrées normalisées
-  - **74 724 478** entrées dédupliquées
+  - **3 423 696** entrées brutes
+  - **297 382 422** entrées normalisées
+  - **74 909 733** entrées dédupliquées
 - Taux de déduplication
 - Temps d'exécution pour chaque étape
 - Progression visuelle avec barres de progression

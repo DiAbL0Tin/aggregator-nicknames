@@ -10,11 +10,15 @@ import random
 import time
 import shutil
 from pathlib import Path
+from datetime import datetime
 from contextlib import suppress
 from typing import Optional, Union, Dict, List
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
 # Ce mixin est utilisé avec OrchestratorBase mais n'en hérite pas directement
 from rich.console import Console
+
+# Importer les décorateurs de gestion d'erreurs
+from .error_handling import log_errors, capture_errors
 
 
 class CleaningMixin:
@@ -304,6 +308,7 @@ class CleaningMixin:
         
         self.console.print("[green]✓ Tous les répertoires vidés avec succès ![/green]")
 
+    @capture_errors("Nettoyage des données brutes")
     async def run_clear_raw(self) -> None:
         """
         Vide le dossier des données brutes (raw).

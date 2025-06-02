@@ -7,8 +7,15 @@ import asyncio
 import os
 import shutil
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional
 from rich.console import Console
+from datetime import datetime
+
+# Import des décorateurs de gestion d'erreurs
+from .error_handling import log_errors, capture_errors
+
+# Imports nécessaires pour les définitions de types
+from ..config import Config, Source, load_config
 
 from ..download import download_source_data, is_binary_file, validate_downloaded_files
 from ..export import export_data
@@ -17,16 +24,60 @@ from ..dedupe import deduplicate_chunks
 
 class UtilsMixin:
     """Mixin pour les fonctionnalités utilitaires de l'orchestrateur."""
+    
+    # Attributs hérités de OrchestratorBase
+    console: Console
+    config_path: str
+    raw_dir: Path
+    normalized_dir: Path
+    deduped_dir: Path
+    output_dir: Path
+    config: Config
+    source_paths: Dict[str, List[Path]]
+    normalized_paths: Dict[str, List[Path]]
+    deduped_path: Optional[Path]
+    stats: Dict[str, int]
 
+    async def reload_config(self):
+        """
+        Recharge la configuration depuis le fichier config_path.
+        Cette méthode est utile après un nettoyage du projet pour s'assurer
+        que la configuration est correctement chargée.
+        """
+        try:
+            self.console.print("[cyan]Rechargement de la configuration...[/cyan]")
+            self.config = load_config(self.config_path)
+            return True
+        except Exception as e:
+            self.console.print(f"[bold red]Erreur lors du rechargement de la configuration: {e}[/bold red]")
+            return False
+    
+    @log_errors("Téléchargement des sources")
     async def run_download_sources(self):
         """
         Télécharge les sources définies dans la configuration.
         """
+        self.console.print("!!!!!!!!!!!!!!!!!!!!!!!!!!!! DEBUG UTILS: ENTRÉE DANS UtilsMixin.run_download_sources !!!!!!!!!!!!!!!!!!!!!!!!!!!!") # Corrected Indentation, using self.console.print
         self.console.print("\n[bold blue]Téléchargement des sources...[/bold blue]")
+        self.console.print(f"[bold yellow]DEBUG UTILS: self.config type: {type(self.config)}[/bold yellow]")
+        if self.config: # Check if config is not None first
+            if hasattr(self.config, 'sources'):
+                self.console.print(f"[bold yellow]DEBUG UTILS: Nombre de sources trouvées dans config: {len(self.config.sources)}[/bold yellow]")
+                if self.config.sources: # Check if sources list is not empty
+                    self.console.print(f"[bold yellow]DEBUG UTILS: Première source: {self.config.sources[0].slug}[/bold yellow]")
+                else:
+                    self.console.print(f"[bold red]DEBUG UTILS: self.config.sources EST VIDE ![/bold red]")
+            else:
+                self.console.print(f"[bold red]DEBUG UTILS: self.config N'A PAS D'ATTRIBUT 'sources' ![/bold red]")
+        else:
+            self.console.print(f"[bold red]DEBUG UTILS: self.config EST NONE ![/bold red]")
         
+        # Vérifier si la configuration est correctement chargée, sinon la recharger
         if not self.config or not hasattr(self.config, 'sources') or not self.config.sources:
-            self.console.print("[bold red]Aucune source définie dans la configuration.[/bold red]")
-            return
+            self.console.print("[yellow]Configuration non chargée ou invalide, tentative de rechargement...[/yellow]")
+            if not await self.reload_config() or not self.config.sources:
+                self.console.print("[bold red]Aucune source définie dans la configuration.[/bold red]")
+                return
             
         # Créer le répertoire raw s'il n'existe pas
         self.raw_dir.mkdir(parents=True, exist_ok=True)
@@ -69,6 +120,7 @@ class UtilsMixin:
                 
         self.console.print(f"[bold green]✓ Téléchargement terminé. {self.stats['sources_downloaded']} sources téléchargées.[/bold green]")
     
+    @log_errors("Normalisation des données")
     async def run_normalize(self):
         """
         Normalise les données brutes.
@@ -225,6 +277,7 @@ class UtilsMixin:
         self.stats['entries_normalized'] = normalized_count
         self.console.print(f"[bold green]✓ Normalisation terminée. {normalized_count} entrées normalisées.[/bold green]")
     
+    @log_errors("Déduplication des données")
     async def run_deduplicate(self):
         """
         Déduplique les chunks bruts.
@@ -259,23 +312,131 @@ class UtilsMixin:
         except Exception as e:
             self.console.print(f"[bold red]Erreur lors de la déduplication: {e}[/bold red]")
     
-    async def run_export(self):
+    async def run_export(
+        self,
+        export_emails: bool = False,
+        export_nicknames: bool = False,
+        export_passwords: bool = False
+    ):
         """
-        Exporte les données dédupliquées.
+        Exporte les données dédupliquées selon les options demandées.
+
+        Args:
+            export_emails (bool): Si True, exporte uniquement les emails dans output/emails/emails.txt
+            export_nicknames (bool): Si True, exporte uniquement les pseudonymes dans output/nicknames/nicknames.txt
+            export_passwords (bool): Si True, exporte uniquement les mots de passe dans output/passwords/passwords.txt
+
+        Si aucun paramètre n'est True, effectue l'export standard (toutes les données).
         """
-        self.console.print("\n[bold blue]Exportation des données...[/bold blue]")
-        
+        if export_emails:
+            self.console.print("\n[bold blue]Exportation des emails en fichier séparé...[/bold blue]")
+        if export_nicknames:
+            self.console.print("\n[bold blue]Exportation des pseudonymes en fichier séparé...[/bold blue]")
+        if export_passwords:
+            self.console.print("\n[bold blue]Exportation des mots de passe en fichier séparé...[/bold blue]")
+        if not (export_emails or export_nicknames or export_passwords):
+            self.console.print("\n[bold blue]Exportation des données...[/bold blue]")
+
         if not self.deduped_path or not self.deduped_path.exists():
             self.console.print("[yellow]Aucun fichier dédupliqué à exporter. Veuillez d'abord dédupliquer les chunks.[/yellow]")
             return
-            
         try:
-            final_path = await asyncio.to_thread(
-                export_data,
-                self.config_path,
-                self.deduped_path
-            )
-            
-            self.console.print(f"[bold green]✓ Exportation terminée. Fichier créé: {final_path}[/bold green]")
+            # Récupérer les chemins des fichiers normalisés
+            normalized_paths_dict = {slug: paths[0] if paths else None for slug, paths in self.normalized_paths.items()}
+
+            if export_emails:
+                # Export emails séparé
+                output_dir = self.output_dir / "emails"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_file = output_dir / "emails.txt"
+                await asyncio.to_thread(self._export_emails_only, self.deduped_path, output_file)
+                self.console.print(f"[green]✓ Exportation des emails terminée : {output_file}[/green]")
+            if export_nicknames:
+                # Export nicknames séparé
+                output_dir = self.output_dir / "nicknames"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_file = output_dir / "nicknames.txt"
+                await asyncio.to_thread(self._export_nicknames_only, self.deduped_path, output_file)
+                self.console.print(f"[green]✓ Exportation des pseudonymes terminée : {output_file}[/green]")
+            if export_passwords:
+                # Export passwords séparé
+                output_dir = self.output_dir / "passwords"
+                output_dir.mkdir(parents=True, exist_ok=True)
+                output_file = output_dir / "passwords.txt"
+                await asyncio.to_thread(self._export_passwords_only, self.deduped_path, output_file)
+                self.console.print(f"[green]✓ Exportation des mots de passe terminée : {output_file}[/green]")
+            if not (export_emails or export_nicknames or export_passwords):
+                # Export standard
+                final_path = await asyncio.to_thread(
+                    export_data,
+                    self.config_path,
+                    self.deduped_path
+                )
+                self.console.print(f"[bold green]✓ Exportation terminée. Fichier créé: {final_path}[/bold green]")
         except Exception as e:
             self.console.print(f"[bold red]Erreur lors de l'exportation: {e}[/bold red]")
+
+    def _export_emails_only(self, source_path, output_file):
+        """
+        Exporte uniquement les emails depuis le fichier source_path vers output_file.
+        """
+        with open(source_path, "r", encoding="utf-8", errors="ignore") as fin, open(output_file, "w", encoding="utf-8") as fout:
+            for line in fin:
+                if "@" in line and "." in line:  # Filtrage simple d'email
+                    fout.write(line)
+
+    def _export_nicknames_only(self, source_path, output_file):
+        """
+        Exporte uniquement les pseudonymes depuis le fichier source_path vers output_file.
+        """
+        with open(source_path, "r", encoding="utf-8", errors="ignore") as fin, open(output_file, "w", encoding="utf-8") as fout:
+            for line in fin:
+                if "@" not in line and len(line.strip()) > 0:  # Pas d'@, donc probablement un nickname
+                    fout.write(line)
+
+    def _export_passwords_only(self, source_path, output_file):
+        """
+        Exporte uniquement les mots de passe depuis le fichier source_path vers output_file.
+        """
+        with open(source_path, "r", encoding="utf-8", errors="ignore") as fin, open(output_file, "w", encoding="utf-8") as fout:
+            for line in fin:
+                # Mot de passe : ni @ ni espace, longueur > 6, pas vide
+                if "@" not in line and " " not in line and len(line.strip()) > 6:
+                    fout.write(line)
+
+            
+    async def run_export_all(self):
+        """
+        Exporte tous les types (pseudonymes, emails, mots de passe) dans leurs dossiers/fichiers respectifs.
+        """
+        await self.run_export_nicknames()
+        await self.run_export_emails()
+        await self.run_export_passwords()
+
+    @capture_errors("Exportation des pseudos")
+    async def run_export_nicknames(self):
+        """
+        Exporte uniquement les pseudos dans output/nicknames/nicknames.txt
+        """
+        await self.run_export(export_nicknames=True)
+        
+    @log_errors("Exportation des données")
+    async def run_export_data(self):
+        """
+        Exporte les données finales vers les formats de sortie.
+        """
+        await self.run_export(export_emails=True)
+
+    @capture_errors("Exportation des emails")
+    async def run_export_emails(self):
+        """
+        Exporte uniquement les emails dans output/emails/emails.txt
+        """
+        await self.run_export(export_emails=True)
+
+    @capture_errors("Exportation des mots de passe")
+    async def run_export_passwords(self):
+        """
+        Exporte uniquement les mots de passe dans output/passwords/passwords.txt (fusionne toutes les sources password)
+        """
+        await self.run_export(export_passwords=True)
