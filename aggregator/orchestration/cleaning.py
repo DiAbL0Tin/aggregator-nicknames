@@ -10,7 +10,6 @@ import random
 import time
 import shutil
 from pathlib import Path
-from datetime import datetime
 from contextlib import suppress
 from typing import Optional, Union, Dict, List
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeElapsedColumn
@@ -18,7 +17,7 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from rich.console import Console
 
 # Importer les décorateurs de gestion d'erreurs
-from .error_handling import log_errors, capture_errors
+from .error_handling import log_errors, capture_errors  # type: ignore
 
 
 class CleaningMixin:
@@ -308,7 +307,7 @@ class CleaningMixin:
         
         self.console.print("[green]✓ Tous les répertoires vidés avec succès ![/green]")
 
-    @capture_errors("Nettoyage des données brutes")
+    @capture_errors("Nettoyage des données brutes")  # type: ignore
     async def run_clear_raw(self) -> None:
         """
         Vide le dossier des données brutes (raw).

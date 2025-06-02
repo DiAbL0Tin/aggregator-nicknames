@@ -36,10 +36,16 @@ classDiagram
 ## Features
 
 - Asynchronous download of more than 30 repositories and datasets
+- **Email processing**: Collection, extraction and storage of emails, local parts, and domains
+- **Password processing**: Collection and normalization of common passwords from specialized datasets
+- **Advanced error handling**: Loguru-based async error logging, memory storage, and rich display
 - Data normalization (lowercase, accent removal, strict special character removal: only `[a-z0-9_.- ]` characters are kept, empty string removal)
 - High-performance deduplication with priority order preservation
 - Streaming export in blocks of 1 million lines
 - Support for large data volumes (>220M entries)
+- **Redesigned interactive menu**: Separated automatic and manual options for better user experience
+- **Specialized exports**: Export nicknames, emails, and passwords separately or combined
+- **Error reporting**: Detailed error tables showing phase, type, message and timestamp
 - Complete command-line interface
 - **Interactive orchestrator** with real-time statistics
 - **Automatic installation** of dependencies and project configuration
@@ -417,18 +423,24 @@ classDiagram
 ## Fonctionnalités
 
 - Téléchargement asynchrone de plus de 30 dépôts et datasets
+- **Traitement des emails** : Collecte, extraction et stockage des emails, parties locales et domaines
+- **Traitement des mots de passe** : Collecte et normalisation des mots de passe courants à partir de datasets spécialisés
+- **Gestion avancée des erreurs** : Logging asynchrone basé sur Loguru, stockage en mémoire et affichage Rich
 - Normalisation des données (minuscules, suppression des accents, suppression stricte des caractères spéciaux : seuls les caractères `[a-z0-9_.- ]` sont conservés, suppression des chaînes vides)
 - Déduplication haute performance avec préservation de l'ordre de priorité
-- Export streaming par blocs d'1 million de lignes
-- Support pour les grands volumes de données (>220M entrées)
+- Export en streaming par blocs d'un million de lignes
+- Support des grands volumes de données (>220M entrées)
+- **Menu interactif refondu** : Options automatiques et manuelles séparées pour une meilleure expérience utilisateur
+- **Exports spécialisés** : Export des pseudonymes, emails et mots de passe séparément ou combinés
+- **Rapport d'erreurs** : Tableaux d'erreurs détaillés montrant la phase, le type, le message et l'horodatage
 - Interface en ligne de commande complète
 - **Orchestrateur interactif** avec statistiques en temps réel
 - **Installation automatique** des dépendances et configuration du projet
 - **Nettoyage intelligent des données brutes** : organisation des fichiers par catégorie avec correction automatique des noms de fichiers et sauvegarde des originaux
-- **Validation des fichiers téléchargés** : vérification de l'existence et de l'accessibilité des fichiers avant normalisation
+- **Validation des fichiers téléchargés** : vérification de l'existence et l'accessibilité des fichiers avant normalisation
 - **Détection automatique de fichiers binaires** : traitement spécifique adapté au type de fichier (texte ou binaire)
 - Gestion des archives (zip, tar.gz, tgz) : extraction automatique avant normalisation
-- Support du slug `japanese_names` : lecture séparée des fichiers male et female, normalisation des pseudos et export Parquet
+- Support du slug `japanese_names` : lecture séparée des fichiers masculins et féminins, normalisation des noms d'utilisateur et export Parquet
 - Support du slug `hypixel` : fusion des fichiers `epicube-players` et `hypixel-players`, normalisation des pseudos et export Parquet
 - Support du slug `runescape_2014` : téléchargement via HTTP depuis URL configurée, extraction de l'archive, lecture de tous les fichiers .txt et export Parquet
 - Création de chunks depuis les données normalisées (5 millions de lignes par chunk) pour faciliter la gestion des très grands volumes
@@ -485,31 +497,64 @@ Les traductions sont gérées dans le fichier `aggregator/orchestration/translat
 python -m aggregator.orchestrate --config config.yaml
 ```
 
-L'orchestrateur interactif vous permet de :
-- **1.** Installer les dépendances et configurer le projet
-- **2.** Télécharger/mettre à jour les sources
-- **3.** Normaliser les données
-- **4.** Créer des chunks depuis les données normalisées (5 M lignes)
-- **5.** Dédupliquer les données
-- **6.** Exporter les données
-- **7.** Diviser le fichier dédupliqué
-    - Permet de diviser le fichier dédupliqué en plusieurs fichiers plus petits en spécifiant le nombre de lignes par fichier.
-- **8.** Diviser le fichier dédupliqué en mode test
-    - Fonctionnalité permettant de diviser uniquement les premières lignes du fichier dédupliqué en un nombre spécifié de fichiers, avec un nombre de lignes par fichier défini par l'utilisateur.
-    - Idéal pour les phases de test, car traite un échantillon limité de données plutôt que le fichier complet.
-- **9.** Vider le dossier final (splits dédupliqués)
-- **10.** Vider le dossier raw (supprimer les sources)
-- **11.** Vider le cache des données normalisées
-- **12.** Vider les fichiers temporaires
-- **13.** Nettoyage strict : supprimer tout sauf les fichiers/dossiers essentiels (voir ci-dessous)
-    - ⚠️ Confirmation obligatoire, sécurité renforcée, whitelist : `README.md`, `config.yaml`, `pyproject.toml`, `poetry.lock`, `aggregator/`, `tests/`, `.github/`.
-    - L'ancienne remise à zéro (suppression totale) n'est plus accessible par le menu, mais reste dans le code pour fallback technique.
-- **14.** Lancer le programme en mode automatique complet
-    - Exécute séquentiellement : nettoyage strict (13), téléchargement (1), normalisation (2), création de chunks (4), déduplication (5), export (6), et division du fichier dédupliqué (7) avec 1 000 000 lignes par fichier.
-- **15.** Lancer le programme en mode automatique avec choix du nombre de lignes par fichier
-    - Similaire à l'option 14, mais permet de spécifier le nombre de lignes par fichier pour la division finale.
-    - Utile pour adapter la taille des fichiers de sortie à vos besoins spécifiques.
-- **16.** Afficher les statistiques en temps réel
+L'orchestrateur interactif refondu propose désormais un menu séparant clairement les options automatiques et manuelles pour une meilleure expérience utilisateur :
+
+### Options automatiques
+
+- **1.** Pipeline automatique complet
+    - Exécute séquentiellement : téléchargement des sources, normalisation, déduplication, export et division du fichier dédupliqué
+    - Affichage des statistiques et erreurs en fin de processus
+    - Option idéale pour un traitement standard de toutes les données
+
+- **2.** Pipeline automatique (emails uniquement)
+    - Similaire à l'option 1, mais se concentre uniquement sur les sources d'emails
+    - Traitement spécifique pour l'extraction et la normalisation des adresses email
+
+- **3.** Pipeline automatique (pseudos uniquement)
+    - Exécute le pipeline standard uniquement sur les sources contenant des pseudonymes
+
+- **4.** Pipeline automatique (mots de passe uniquement)
+    - Traitement des sources de mots de passe courants et breachés
+
+### Options manuelles
+
+- **5.** Installation des dépendances et configuration du projet
+- **6.** Télécharger/mettre à jour les sources
+- **7.** Normaliser les données
+- **8.** Créer des chunks depuis les données normalisées (5 M lignes)
+- **9.** Dédupliquer les données
+- **10.** Exporter les données
+    - Sous-options pour exporter séparément ou ensemble : pseudos, emails, mots de passe
+    - Formats d'export configurables (Parquet, TXT)
+
+- **11.** Diviser le fichier dédupliqué
+    - Permet de diviser le fichier dédupliqué en plusieurs fichiers plus petits en spécifiant le nombre de lignes par fichier
+
+- **12.** Diviser le fichier dédupliqué en mode test
+    - Fonctionnalité permettant de diviser uniquement les premières lignes du fichier dédupliqué
+    - Idéal pour les phases de test avec un échantillon limité de données
+
+### Options de nettoyage
+
+- **13.** Vider le dossier final (splits dédupliqués)
+- **14.** Vider le dossier raw (supprimer les sources)
+- **15.** Vider le cache des données normalisées
+- **16.** Vider les fichiers temporaires
+- **17.** Nettoyage strict : supprimer tout sauf les fichiers/dossiers essentiels
+    - ⚠️ Confirmation obligatoire, sécurité renforcée
+    - Whitelist : `README.md`, `config.yaml`, `pyproject.toml`, `poetry.lock`, `aggregator/`, `tests/`, `.github/`
+
+### Visualisation et diagnostic
+
+- **18.** Afficher les statistiques en temps réel
+    - Métriques détaillées sur les sources, entrées brutes, normalisées et dédupliquées
+    - Taux de déduplication et temps d'exécution
+
+- **19.** Afficher le journal des erreurs
+    - Tableau des erreurs capturées durant l'exécution
+    - Informations détaillées : phase, type d'erreur, message, horodatage
+    - Visualisation Rich pour une meilleure lisibilité
+
 - **0.** Quitter
 
 ### Pipeline complet (CLI)
@@ -606,14 +651,37 @@ L'orchestrateur interactif propose une option d'installation automatique qui :
     - Tous les fichiers d'entrée sont validés avant traitement
     - Détection automatique des problèmes d'encodage
     - Messages d'erreur clairs et rapports détaillés
-- **Gestion des erreurs** :
-    - Gestion robuste des erreurs à chaque étape du pipeline
+- **Gestion avancée des erreurs** :
+    - Système complet basé sur Loguru pour la capture, le logging et l'affichage des erreurs
+    - Décorateurs asynchrones `log_errors` et `capture_errors` pour les méthodes critiques et non-critiques
+    - Stockage en mémoire des erreurs pendant l'exécution pour affichage en fin de processus
     - Mécanismes de récupération pour les processus interrompus
-    - Messages d'erreur éducatifs qui ne divulguent pas d'informations sensibles
+    - Messages d'erreur détaillés avec phase, type, horodatage et trace complète
     - Les entrées utilisateur sont systématiquement validées dans le menu interactif
-- **Logs** :
-    - Utilisation de la console `rich` pour tous les logs
-    - Possibilité d'ajouter un module de journalisation avancé (niveau, format, destination) pour la production
+- **Logs et monitoring** :
+    - Intégration de Loguru pour un logging structuré et colorisé
+    - Niveaux de logs configurables (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    - Rotation des fichiers de logs et formats personnalisables
+    - Utilisation de la console `rich` pour tous les affichages utilisateur
+    - Tableaux d'erreurs interactifs avec filtrage et tri
+
+### Stratégie de gestion des erreurs
+
+- **Méthodes critiques** : Utilisées avec le décorateur `@log_errors` qui :
+  - Capture et journalise l'erreur avec contexte complet
+  - Relève l'exception pour arrêter le processus en cas d'échec
+  - Garantit qu'aucune étape critique ne soit ignorée
+
+- **Méthodes non-critiques** : Utilisées avec le décorateur `@capture_errors` qui :
+  - Capture et journalise l'erreur avec contexte complet
+  - Stocke l'erreur dans `errors_log` pour affichage ultérieur
+  - Permet au processus de continuer malgré l'erreur
+  - Idéal pour les étapes qui peuvent échouer sans compromettre le pipeline entier
+
+- **Affichage des erreurs** :
+  - Tableau interactif disponible via l'option dédiée du menu
+  - Affichage automatique après chaque exécution du pipeline automatique
+  - Format facilement lisible avec informations essentielles
 
 ## Pipeline technique
 
